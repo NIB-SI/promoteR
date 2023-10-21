@@ -1,0 +1,2 @@
+https://solgenomics.net/ftp/genomes/Solanum_lycopersicum/assembly/current_build/
+https://solgenomics.net/ftp/genomes/Solanum_lycopersicum/annotation/ITAG2.4_release/

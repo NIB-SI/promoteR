@@ -1,0 +1,261 @@
+---
+title: "find_overlaps"
+author: "zagor"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  html_document:
+    toc: true # table of content true
+    toc_depth: 3  # upto three depths of headings (specified by #, ## and ###)
+    number_sections: true  ## if you want number sections at each table header
+    theme: united  # many options for theme, this one is my favorite.
+    highlight: tango  # specifies the syntax highlighting style
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+
+
+library(Rsamtools)
+library(GenomicFeatures)
+
+
+# BiocManager::install("bumphunter")
+# library(bumphunter)
+
+```
+
+# data
+
+
+
+## fasta
+
+
+```{r}
+
+my.directory = file.path('..', 'input', 'PLAZA')
+my.file.1 = 'sly.fasta'
+
+
+
+
+
+fa <- open(FaFile(file.path(my.directory, my.file.1)))
+
+str(fa)
+
+```
+
+
+## gff3/gtf to TxDb
+```{r}
+
+
+my.file.2 = 'annotation.all_transcripts.all_features.sly.gff3'
+
+
+
+org.gff3 = GenomicFeatures::makeTxDbFromGFF(file.path(my.directory, my.file.2),
+                              format="gff3",
+                              dataSource=NA,
+                              # organism='Solanum tuberosum',
+                              taxonomyId=NA,
+                              circ_seqs=NULL,
+                              chrominfo=NULL,
+                              miRBaseBuild=NA,
+                              metadata=NULL)
+str(org.gff3)
+
+
+
+```
+
+
+# potential overlaps
+
+```{r}
+
+transcriptCoordsByGene.GRangesList = transcriptsBy(org.gff3, by = "gene") 
+ranges = unlist(transcriptCoordsByGene.GRangesList)
+
+subject <- GRanges(seqnames=ranges@seqnames, ranges=IRanges(start=ranges@ranges@start, width=ranges@ranges@width),strand=ranges@strand)
+subject@elementMetadata$tx_name = ranges@elementMetadata$tx_name
+subject1 = subject[subject@strand == '+', ]
+subject2 = subject[subject@strand == '-', ]
+query1 = GRanges(seqnames=subject1@seqnames, 
+                ranges=IRanges(start=subject1@ranges@start - 1000, 
+                               width=1000),
+                strand=subject1@strand)
+query1@elementMetadata$tx_name = subject1@elementMetadata$tx_name
+query2 = GRanges(seqnames=subject2@seqnames, 
+                ranges=IRanges(start=subject2@ranges@start + subject2@ranges@width, 
+                               width=1000),
+                strand=subject2@strand)
+query2@elementMetadata$tx_name = subject2@elementMetadata$tx_name
+
+dists1 = distanceToNearest(subject1,query1,select="all")
+dists2 = distanceToNearest(subject2,query2,select="all")
+dists1@elementMetadata$tx_name1 = subject1@elementMetadata$tx_name[dists1@from]
+dists1@elementMetadata$tx_name2 = query1@elementMetadata$tx_name[dists1@to]
+dists2@elementMetadata$tx_name1 = subject2@elementMetadata$tx_name[dists2@from]
+dists2@elementMetadata$tx_name2 = query2@elementMetadata$tx_name[dists2@to]
+
+d1 = as.data.frame(dists1)
+d1$subject =  subject1@elementMetadata$tx_name[d1$subjectHits]
+d1$query =  query1@elementMetadata$tx_name[d1$queryHits]
+d1$subjectID =  subject1@elementMetadata$tx_id[d1$subjectHits]
+d1$queryID =  query1@elementMetadata$tx_id[d1$queryHits]
+d1 = d1[d1$subject != d1$query, ]
+d1 = d1[d1$distance <= 0, ]
+dim(d1)
+
+
+
+d2 = as.data.frame(dists2)
+d2$subject =  subject2@elementMetadata$tx_name[d2$subjectHits]
+d2$query =  query2@elementMetadata$tx_name[d2$queryHits]
+d2$subjectID =  subject2@elementMetadata$tx_id[d2$subjectHits]
+d2$queryID =  query2@elementMetadata$tx_id[d2$queryHits]
+d2 = d2[d2$subject != d2$query, ]
+d2 = d2[d2$distance <= 0, ]
+dim(d2)
+
+d1$strand = '+'
+d2$strand = '-'
+
+d = rbind(d1, d2)
+# d = d[, -c(1:3)]
+d = d[!duplicated(d), ]
+dim(d)
+
+id = sort(unique(c(d$subject, d$query)))
+length(id)
+ind = which(ranges@elementMetadata$tx_name %in% id)
+b = ranges[ind, ]
+a = as.data.frame(b@ranges)
+e = b@elementMetadata$tx_name
+f = b@elementMetadata$tx_id
+a = cbind(a,e,f)
+a = a[!duplicated(a), ]
+dim(a)
+
+
+colnames(a) = c('subject_start', 'subject_end', 'subject_width', 'subject_DMG', 'subject', 'subjectID')
+d = merge(d, a, by = c('subject'), all.x = TRUE, all.y = FALSE)
+colnames(a) = c('query_start', 'query_end', 'query_width', 'query_DMG', 'query', 'queryID')
+d = merge(d, a, by = c('query'), all.x = TRUE, all.y = FALSE)
+dim(d)
+
+d$subject_start_plus = d$subject_start - 1000
+d$subject_end_plus = d$subject_end + 1000
+d$query_start_plus = d$query_start - 1000
+d$query_end_plus = d$query_end + 1000
+
+```
+
+
+
+```{r}
+
+
+
+d$query = gsub('.[0-9]$', '', d$query)
+d$subject = gsub('.[0-9]$', '', d$subject)
+d = d[d$query != d$subject, ]
+dim(d)
+
+minus = d[d$strand == '-', ]
+plus = d[d$strand == '+', ]
+
+tmp1 = cbind(plus$query,
+             plus$subject,
+             plus$tx_name1,
+             plus$tx_name2)
+tmp2 = cbind((plus$subject_end_plus-plus$query_start), 
+            (plus$query_end_plus-plus$subject_start))
+mm1 = apply(abs(tmp2), 1, min)
+tmp3 = cbind(minus$query,
+             minus$subject,
+             minus$tx_name1,
+             minus$tx_name2)
+tmp4 = cbind((minus$subject_start_plus - minus$query_end), 
+            (minus$subject_end-minus$query_start_plus))
+mm2 = apply(abs(tmp4), 1, min)
+
+
+
+overl = sort(unique(c(which(d$query_start <= d$subject_start & d$query_end >= d$subject_end),
+          which(d$query_start >= d$subject_start & d$query_end <= d$subject_end),
+          which(d$query_start <= d$subject_start & d$query_end <= d$subject_end & d$query_end >= d$subject_start),
+          which(d$query_start >= d$subject_start & d$query_end >= d$subject_end & d$query_start <= d$subject_end))))
+
+
+mm3 = apply(abs(tmp2), 1, min)
+
+
+dd = rbind(cbind(tmp1, mm1),
+           cbind(tmp3, mm2))
+colnames(dd) = c('query', 'subject', 'tx_name1', 'tx_name2', 'tr-flanked_distance')
+dim(dd)
+dim(dd[!duplicated(dd), ])
+dim(d[!duplicated(d[, 6:7]), 6:7])
+dim(dd[!duplicated(dd[, 1:2]), 1:2])
+
+d3 = merge(d, dd, by = c('query', 'subject', 'tx_name1', 'tx_name2'), all.x = TRUE, all.y = FALSE)
+dim(d3)
+
+d3$overlappingGenes = FALSE
+d3$overlappingGenes[overl] = TRUE
+
+
+```
+
+# write results
+
+
+```{r}
+
+
+output.directory = file.path('..', 'output')
+file.output.name = 'potential_1000ntpromotor_overlaping_genes.xlsx'
+
+# write.table(d3, 
+#             file.path(output.directory, file.output.name), 
+#             append = FALSE, 
+#             quote = FALSE, 
+#             sep = "\t",
+#             eol = "\n", 
+#             na = "NA", dec = ".", 
+#             row.names = FALSE,
+#             col.names = TRUE, 
+#             qmethod = c("escape"),
+#             fileEncoding = "UTF-8")
+
+
+
+d3$`tr-flanked_distance` = as.numeric(d3$`tr-flanked_distance`)
+
+openxlsx::write.xlsx(d3, 
+                     file.path(output.directory, file.output.name), 
+                     asTable = TRUE,
+                     sheetName = 'neighbourhood',
+                     tabColour = 'orange')
+
+
+
+```
+
+
+```{r}
+
+sessionInfo()
+
+```
+
