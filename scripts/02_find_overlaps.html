@@ -11,7 +11,7 @@
 
 <meta name="author" content="zagor" />
 
-<meta name="date" content="2023-10-17" />
+<meta name="date" content="2025-04-28" />
 
 <title>find_overlaps</title>
 
@@ -237,7 +237,7 @@ overflow: visible;
 </style>
 <style type="text/css" data-origin="pandoc">
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span { line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -248,7 +248,7 @@ div.sourceCode { overflow: auto; }
 }
 @media print {
 pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
 }
 pre.numberSource code
 { counter-reset: source-line 0; }
@@ -429,24 +429,49 @@ display: none;
 
 <h1 class="title toc-ignore">find_overlaps</h1>
 <h4 class="author">zagor</h4>
-<h4 class="date">October 17, 2023</h4>
+<h4 class="date">April 28, 2025</h4>
 
 </div>
 
 <div id="TOC">
 <ul>
-<li><a href="#data" id="toc-data"><span class="toc-section-number">1</span> data</a>
+<li><a href="#params" id="toc-params"><span class="toc-section-number">1</span> params</a></li>
+<li><a href="#packages" id="toc-packages"><span class="toc-section-number">2</span> packages</a></li>
+<li><a href="#data" id="toc-data"><span class="toc-section-number">3</span> data</a>
 <ul>
-<li><a href="#fasta" id="toc-fasta"><span class="toc-section-number">1.1</span> fasta</a></li>
-<li><a href="#gff3gtf-to-txdb" id="toc-gff3gtf-to-txdb"><span class="toc-section-number">1.2</span> gff3/gtf to TxDb</a></li>
+<li><a href="#fasta" id="toc-fasta"><span class="toc-section-number">3.1</span> fasta</a></li>
+<li><a href="#gff3gtf" id="toc-gff3gtf"><span class="toc-section-number">3.2</span> gff3/gtf</a></li>
 </ul></li>
-<li><a href="#potential-overlaps" id="toc-potential-overlaps"><span class="toc-section-number">2</span> potential overlaps</a></li>
-<li><a href="#write-results" id="toc-write-results"><span class="toc-section-number">3</span> write results</a></li>
+<li><a href="#potential-overlaps" id="toc-potential-overlaps"><span class="toc-section-number">4</span> potential overlaps</a></li>
+<li><a href="#write-results" id="toc-write-results"><span class="toc-section-number">5</span> write results</a></li>
+<li><a href="#session-info" id="toc-session-info"><span class="toc-section-number">6</span> session Info</a></li>
 </ul>
 </div>
 
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(Rsamtools)</span></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">gc</span>(<span class="at">reset =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<pre><code>##          used (Mb) gc trigger (Mb) max used (Mb)
+## Ncells 547079 29.3    1219854 65.2   547079 29.3
+## Vcells 998028  7.7    8388608 64.0   998028  7.7</code></pre>
+<div id="params" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> params</h1>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>upstream.width <span class="ot">=</span> <span class="dv">2000</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co"># input</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>my.directory <span class="ot">=</span> <span class="fu">file.path</span>(<span class="st">&#39;..&#39;</span>, <span class="st">&#39;input&#39;</span>, <span class="st">&#39;unitato&#39;</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>my.file<span class="fl">.1</span> <span class="ot">=</span> <span class="st">&#39;UniTato.fasta&#39;</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>my.file<span class="fl">.2</span> <span class="ot">=</span> <span class="st">&#39;UniTato.gff.gz&#39;</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co"># output</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>output.directory <span class="ot">=</span> <span class="fu">file.path</span>(<span class="st">&#39;..&#39;</span>, <span class="st">&#39;output&#39;</span>)</span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>file.output.name <span class="ot">=</span> <span class="fu">paste0</span>(<span class="st">&#39;UniTato_potential_&#39;</span>, upstream.width, <span class="st">&#39;ntpromotor_overlaping_genes.xlsx&#39;</span>)</span></code></pre></div>
+</div>
+<div id="packages" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> packages</h1>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">library</span>(Rsamtools)</span></code></pre></div>
 <pre><code>## Loading required package: GenomeInfoDb</code></pre>
+<pre><code>## Warning: package &#39;GenomeInfoDb&#39; was built under R version 4.4.2</code></pre>
 <pre><code>## Loading required package: BiocGenerics</code></pre>
 <pre><code>## 
 ## Attaching package: &#39;BiocGenerics&#39;</code></pre>
@@ -459,7 +484,7 @@ display: none;
 ##     colnames, dirname, do.call, duplicated, eval, evalq, Filter, Find,
 ##     get, grep, grepl, intersect, is.unsorted, lapply, Map, mapply,
 ##     match, mget, order, paste, pmax, pmax.int, pmin, pmin.int,
-##     Position, rank, rbind, Reduce, rownames, sapply, setdiff, sort,
+##     Position, rank, rbind, Reduce, rownames, sapply, saveRDS, setdiff,
 ##     table, tapply, union, unique, unsplit, which.max, which.min</code></pre>
 <pre><code>## Loading required package: S4Vectors</code></pre>
 <pre><code>## Loading required package: stats4</code></pre>
@@ -472,6 +497,7 @@ display: none;
 ## 
 ##     expand.grid, I, unname</code></pre>
 <pre><code>## Loading required package: IRanges</code></pre>
+<pre><code>## Warning: package &#39;IRanges&#39; was built under R version 4.4.2</code></pre>
 <pre><code>## 
 ## Attaching package: &#39;IRanges&#39;</code></pre>
 <pre><code>## The following object is masked from &#39;package:grDevices&#39;:
@@ -479,13 +505,14 @@ display: none;
 ##     windows</code></pre>
 <pre><code>## Loading required package: GenomicRanges</code></pre>
 <pre><code>## Loading required package: Biostrings</code></pre>
+<pre><code>## Warning: package &#39;Biostrings&#39; was built under R version 4.4.2</code></pre>
 <pre><code>## Loading required package: XVector</code></pre>
 <pre><code>## 
 ## Attaching package: &#39;Biostrings&#39;</code></pre>
 <pre><code>## The following object is masked from &#39;package:base&#39;:
 ## 
 ##     strsplit</code></pre>
-<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a><span class="fu">library</span>(GenomicFeatures)</span></code></pre></div>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" tabindex="-1"></a><span class="fu">library</span>(GenomicFeatures)</span></code></pre></div>
 <pre><code>## Loading required package: AnnotationDbi</code></pre>
 <pre><code>## Loading required package: Biobase</code></pre>
 <pre><code>## Welcome to Bioconductor
@@ -493,49 +520,44 @@ display: none;
 ##     Vignettes contain introductory material; view with
 ##     &#39;browseVignettes()&#39;. To cite Bioconductor, see
 ##     &#39;citation(&quot;Biobase&quot;)&#39;, and for packages &#39;citation(&quot;pkgname&quot;)&#39;.</code></pre>
-<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a><span class="co"># BiocManager::install(&quot;bumphunter&quot;)</span></span>
-<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a><span class="co"># library(bumphunter)</span></span></code></pre></div>
-<div id="data" class="section level1" number="1">
-<h1><span class="header-section-number">1</span> data</h1>
-<div id="fasta" class="section level2" number="1.1">
-<h2><span class="header-section-number">1.1</span> fasta</h2>
-<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a>my.directory <span class="ot">=</span> <span class="fu">file.path</span>(<span class="st">&#39;..&#39;</span>, <span class="st">&#39;input&#39;</span>, <span class="st">&#39;PLAZA&#39;</span>)</span>
-<span id="cb25-2"><a href="#cb25-2" tabindex="-1"></a>my.file<span class="fl">.1</span> <span class="ot">=</span> <span class="st">&#39;sly.fasta&#39;</span></span>
-<span id="cb25-3"><a href="#cb25-3" tabindex="-1"></a></span>
-<span id="cb25-4"><a href="#cb25-4" tabindex="-1"></a></span>
-<span id="cb25-5"><a href="#cb25-5" tabindex="-1"></a></span>
-<span id="cb25-6"><a href="#cb25-6" tabindex="-1"></a></span>
-<span id="cb25-7"><a href="#cb25-7" tabindex="-1"></a></span>
-<span id="cb25-8"><a href="#cb25-8" tabindex="-1"></a>fa <span class="ot">&lt;-</span> <span class="fu">open</span>(<span class="fu">FaFile</span>(<span class="fu">file.path</span>(my.directory, my.file<span class="fl">.1</span>)))</span>
-<span id="cb25-9"><a href="#cb25-9" tabindex="-1"></a></span>
-<span id="cb25-10"><a href="#cb25-10" tabindex="-1"></a><span class="fu">str</span>(fa)</span></code></pre></div>
+<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a><span class="co"># BiocManager::install(&quot;bumphunter&quot;)</span></span>
+<span id="cb30-2"><a href="#cb30-2" tabindex="-1"></a><span class="co"># library(bumphunter)</span></span></code></pre></div>
+</div>
+<div id="data" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> data</h1>
+<div id="fasta" class="section level2" number="3.1">
+<h2><span class="header-section-number">3.1</span> fasta</h2>
+<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a>fa <span class="ot">=</span> <span class="fu">open</span>(<span class="fu">FaFile</span>(<span class="fu">file.path</span>(my.directory, my.file<span class="fl">.1</span>)))</span>
+<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a></span>
+<span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a><span class="fu">str</span>(fa)</span></code></pre></div>
 <pre><code>## Reference class &#39;FaFile&#39; [package &quot;Rsamtools&quot;] with 5 fields
 ##  $ .extptr  :&lt;externalptr&gt; 
-##  $ path     : chr &quot;../input/PLAZA/sly.fasta&quot;
-##  $ index    : chr &quot;../input/PLAZA/sly.fasta.fai&quot;
+##  $ path     : chr &quot;../input/unitato/UniTato.fasta&quot;
+##  $ index    : chr &quot;../input/unitato/UniTato.fasta.fai&quot;
 ##  $ yieldSize: int NA
-##  $ gzindex  : chr &quot;../input/PLAZA/sly.fasta.gzi&quot;
+##  $ gzindex  : chr &quot;../input/unitato/UniTato.fasta.gzi&quot;
 ##  and 14 methods.</code></pre>
 </div>
-<div id="gff3gtf-to-txdb" class="section level2" number="1.2">
-<h2><span class="header-section-number">1.2</span> gff3/gtf to TxDb</h2>
-<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" tabindex="-1"></a>my.file<span class="fl">.2</span> <span class="ot">=</span> <span class="st">&#39;annotation.all_transcripts.all_features.sly.gff3&#39;</span></span>
-<span id="cb27-2"><a href="#cb27-2" tabindex="-1"></a></span>
-<span id="cb27-3"><a href="#cb27-3" tabindex="-1"></a></span>
-<span id="cb27-4"><a href="#cb27-4" tabindex="-1"></a></span>
-<span id="cb27-5"><a href="#cb27-5" tabindex="-1"></a>org.gff3 <span class="ot">=</span> GenomicFeatures<span class="sc">::</span><span class="fu">makeTxDbFromGFF</span>(<span class="fu">file.path</span>(my.directory, my.file<span class="fl">.2</span>),</span>
-<span id="cb27-6"><a href="#cb27-6" tabindex="-1"></a>                              <span class="at">format=</span><span class="st">&quot;gff3&quot;</span>,</span>
-<span id="cb27-7"><a href="#cb27-7" tabindex="-1"></a>                              <span class="at">dataSource=</span><span class="cn">NA</span>,</span>
-<span id="cb27-8"><a href="#cb27-8" tabindex="-1"></a>                              <span class="co"># organism=&#39;Solanum tuberosum&#39;,</span></span>
-<span id="cb27-9"><a href="#cb27-9" tabindex="-1"></a>                              <span class="at">taxonomyId=</span><span class="cn">NA</span>,</span>
-<span id="cb27-10"><a href="#cb27-10" tabindex="-1"></a>                              <span class="at">circ_seqs=</span><span class="cn">NULL</span>,</span>
-<span id="cb27-11"><a href="#cb27-11" tabindex="-1"></a>                              <span class="at">chrominfo=</span><span class="cn">NULL</span>,</span>
-<span id="cb27-12"><a href="#cb27-12" tabindex="-1"></a>                              <span class="at">miRBaseBuild=</span><span class="cn">NA</span>,</span>
-<span id="cb27-13"><a href="#cb27-13" tabindex="-1"></a>                              <span class="at">metadata=</span><span class="cn">NULL</span>)</span></code></pre></div>
+<div id="gff3gtf" class="section level2" number="3.2">
+<h2><span class="header-section-number">3.2</span> gff3/gtf</h2>
+<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" tabindex="-1"></a>org.gff3 <span class="ot">=</span> GenomicFeatures<span class="sc">::</span><span class="fu">makeTxDbFromGFF</span>(<span class="fu">file.path</span>(my.directory, my.file<span class="fl">.2</span>),</span>
+<span id="cb33-2"><a href="#cb33-2" tabindex="-1"></a>                              <span class="at">format=</span><span class="st">&quot;gff3&quot;</span>,</span>
+<span id="cb33-3"><a href="#cb33-3" tabindex="-1"></a>                              <span class="at">dataSource=</span><span class="cn">NA</span>,</span>
+<span id="cb33-4"><a href="#cb33-4" tabindex="-1"></a>                              <span class="co"># organism=&#39;Solanum tuberosum&#39;,</span></span>
+<span id="cb33-5"><a href="#cb33-5" tabindex="-1"></a>                              <span class="at">taxonomyId=</span><span class="cn">NA</span>,</span>
+<span id="cb33-6"><a href="#cb33-6" tabindex="-1"></a>                              <span class="at">circ_seqs=</span><span class="cn">NULL</span>,</span>
+<span id="cb33-7"><a href="#cb33-7" tabindex="-1"></a>                              <span class="at">chrominfo=</span><span class="cn">NULL</span>,</span>
+<span id="cb33-8"><a href="#cb33-8" tabindex="-1"></a>                              <span class="at">miRBaseBuild=</span><span class="cn">NA</span>,</span>
+<span id="cb33-9"><a href="#cb33-9" tabindex="-1"></a>                              <span class="at">metadata=</span><span class="cn">NULL</span>)</span></code></pre></div>
+<pre><code>## Warning in call_fun_in_txdbmaker(&quot;makeTxDbFromGFF&quot;, ...): makeTxDbFromGFF() has moved to the txdbmaker package. Please call
+##   txdbmaker::makeTxDbFromGFF() to get rid of this warning.</code></pre>
 <pre><code>## Import genomic features from the file as a GRanges object ... OK
 ## Prepare the &#39;metadata&#39; data frame ... OK
-## Make the TxDb object ... OK</code></pre>
-<div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a><span class="fu">str</span>(org.gff3)</span></code></pre></div>
+## Make the TxDb object ...</code></pre>
+<pre><code>## Warning in .get_cds_IDX(mcols0$type, mcols0$phase): some CDS phases are missing
+## or not between 0 and 2</code></pre>
+<pre><code>## OK</code></pre>
+<div class="sourceCode" id="cb38"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" tabindex="-1"></a><span class="fu">str</span>(org.gff3)</span></code></pre></div>
 <pre><code>## Reference class &#39;TxDb&#39; [package &quot;GenomicFeatures&quot;] with 6 fields
 ##  $ conn           :Formal class &#39;SQLiteConnection&#39; [package &quot;RSQLite&quot;] with 8 slots
 ##   .. ..@ ptr                :&lt;externalptr&gt; 
@@ -543,173 +565,159 @@ display: none;
 ##   .. ..@ loadable.extensions: logi TRUE
 ##   .. ..@ flags              : int 70
 ##   .. ..@ vfs                : chr &quot;&quot;
-##   .. ..@ ref                :&lt;environment: 0x00000173c71d3688&gt; 
+##   .. ..@ ref                :&lt;environment: 0x0000024748a54d48&gt; 
 ##   .. ..@ bigint             : chr &quot;integer64&quot;
 ##   .. ..@ extended_types     : logi FALSE
 ##  $ packageName    : chr(0) 
-##  $ user2seqlevels0: int [1:13] 1 2 3 4 5 6 7 8 9 10 ...
-##  $ user_seqlevels : chr [1:13] &quot;SL4.0ch00&quot; &quot;SL4.0ch01&quot; &quot;SL4.0ch02&quot; &quot;SL4.0ch03&quot; ...
-##  $ user_genome    : chr [1:13] NA NA NA NA ...
-##  $ isActiveSeq    : logi [1:13] TRUE TRUE TRUE TRUE TRUE TRUE ...
+##  $ user2seqlevels0: int [1:127] 1 2 3 4 5 6 7 8 9 10 ...
+##  $ user_seqlevels : chr [1:127] &quot;DMv6.1_chr01&quot; &quot;DMv6.1_chr02&quot; &quot;DMv6.1_chr03&quot; &quot;DMv6.1_chr04&quot; ...
+##  $ user_genome    : chr [1:127] NA NA NA NA ...
+##  $ isActiveSeq    : logi [1:127] TRUE TRUE TRUE TRUE TRUE TRUE ...
 ##  and 16 methods, of which 2 are  possibly relevant:
 ##    finalize, initialize</code></pre>
 </div>
 </div>
-<div id="potential-overlaps" class="section level1" number="2">
-<h1><span class="header-section-number">2</span> potential overlaps</h1>
-<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a>transcriptCoordsByGene.GRangesList <span class="ot">=</span> <span class="fu">transcriptsBy</span>(org.gff3, <span class="at">by =</span> <span class="st">&quot;gene&quot;</span>) </span>
-<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a>ranges <span class="ot">=</span> <span class="fu">unlist</span>(transcriptCoordsByGene.GRangesList)</span>
-<span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a></span>
-<span id="cb31-4"><a href="#cb31-4" tabindex="-1"></a>subject <span class="ot">&lt;-</span> <span class="fu">GRanges</span>(<span class="at">seqnames=</span>ranges<span class="sc">@</span>seqnames, <span class="at">ranges=</span><span class="fu">IRanges</span>(<span class="at">start=</span>ranges<span class="sc">@</span>ranges<span class="sc">@</span>start, <span class="at">width=</span>ranges<span class="sc">@</span>ranges<span class="sc">@</span>width),<span class="at">strand=</span>ranges<span class="sc">@</span>strand)</span>
-<span id="cb31-5"><a href="#cb31-5" tabindex="-1"></a>subject<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name <span class="ot">=</span> ranges<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name</span>
-<span id="cb31-6"><a href="#cb31-6" tabindex="-1"></a>subject1 <span class="ot">=</span> subject[subject<span class="sc">@</span>strand <span class="sc">==</span> <span class="st">&#39;+&#39;</span>, ]</span>
-<span id="cb31-7"><a href="#cb31-7" tabindex="-1"></a>subject2 <span class="ot">=</span> subject[subject<span class="sc">@</span>strand <span class="sc">==</span> <span class="st">&#39;-&#39;</span>, ]</span>
-<span id="cb31-8"><a href="#cb31-8" tabindex="-1"></a>query1 <span class="ot">=</span> <span class="fu">GRanges</span>(<span class="at">seqnames=</span>subject1<span class="sc">@</span>seqnames, </span>
-<span id="cb31-9"><a href="#cb31-9" tabindex="-1"></a>                <span class="at">ranges=</span><span class="fu">IRanges</span>(<span class="at">start=</span>subject1<span class="sc">@</span>ranges<span class="sc">@</span>start <span class="sc">-</span> <span class="dv">1000</span>, </span>
-<span id="cb31-10"><a href="#cb31-10" tabindex="-1"></a>                               <span class="at">width=</span><span class="dv">1000</span>),</span>
-<span id="cb31-11"><a href="#cb31-11" tabindex="-1"></a>                <span class="at">strand=</span>subject1<span class="sc">@</span>strand)</span>
-<span id="cb31-12"><a href="#cb31-12" tabindex="-1"></a>query1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name <span class="ot">=</span> subject1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name</span>
-<span id="cb31-13"><a href="#cb31-13" tabindex="-1"></a>query2 <span class="ot">=</span> <span class="fu">GRanges</span>(<span class="at">seqnames=</span>subject2<span class="sc">@</span>seqnames, </span>
-<span id="cb31-14"><a href="#cb31-14" tabindex="-1"></a>                <span class="at">ranges=</span><span class="fu">IRanges</span>(<span class="at">start=</span>subject2<span class="sc">@</span>ranges<span class="sc">@</span>start <span class="sc">+</span> subject2<span class="sc">@</span>ranges<span class="sc">@</span>width, </span>
-<span id="cb31-15"><a href="#cb31-15" tabindex="-1"></a>                               <span class="at">width=</span><span class="dv">1000</span>),</span>
-<span id="cb31-16"><a href="#cb31-16" tabindex="-1"></a>                <span class="at">strand=</span>subject2<span class="sc">@</span>strand)</span>
-<span id="cb31-17"><a href="#cb31-17" tabindex="-1"></a>query2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name <span class="ot">=</span> subject2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name</span>
-<span id="cb31-18"><a href="#cb31-18" tabindex="-1"></a></span>
-<span id="cb31-19"><a href="#cb31-19" tabindex="-1"></a>dists1 <span class="ot">=</span> <span class="fu">distanceToNearest</span>(subject1,query1,<span class="at">select=</span><span class="st">&quot;all&quot;</span>)</span>
-<span id="cb31-20"><a href="#cb31-20" tabindex="-1"></a>dists2 <span class="ot">=</span> <span class="fu">distanceToNearest</span>(subject2,query2,<span class="at">select=</span><span class="st">&quot;all&quot;</span>)</span>
-<span id="cb31-21"><a href="#cb31-21" tabindex="-1"></a>dists1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name1 <span class="ot">=</span> subject1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[dists1<span class="sc">@</span>from]</span>
-<span id="cb31-22"><a href="#cb31-22" tabindex="-1"></a>dists1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name2 <span class="ot">=</span> query1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[dists1<span class="sc">@</span>to]</span>
-<span id="cb31-23"><a href="#cb31-23" tabindex="-1"></a>dists2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name1 <span class="ot">=</span> subject2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[dists2<span class="sc">@</span>from]</span>
-<span id="cb31-24"><a href="#cb31-24" tabindex="-1"></a>dists2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name2 <span class="ot">=</span> query2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[dists2<span class="sc">@</span>to]</span>
-<span id="cb31-25"><a href="#cb31-25" tabindex="-1"></a></span>
-<span id="cb31-26"><a href="#cb31-26" tabindex="-1"></a>d1 <span class="ot">=</span> <span class="fu">as.data.frame</span>(dists1)</span>
-<span id="cb31-27"><a href="#cb31-27" tabindex="-1"></a>d1<span class="sc">$</span>subject <span class="ot">=</span>  subject1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[d1<span class="sc">$</span>subjectHits]</span>
-<span id="cb31-28"><a href="#cb31-28" tabindex="-1"></a>d1<span class="sc">$</span>query <span class="ot">=</span>  query1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[d1<span class="sc">$</span>queryHits]</span>
-<span id="cb31-29"><a href="#cb31-29" tabindex="-1"></a>d1<span class="sc">$</span>subjectID <span class="ot">=</span>  subject1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_id[d1<span class="sc">$</span>subjectHits]</span>
-<span id="cb31-30"><a href="#cb31-30" tabindex="-1"></a>d1<span class="sc">$</span>queryID <span class="ot">=</span>  query1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_id[d1<span class="sc">$</span>queryHits]</span>
-<span id="cb31-31"><a href="#cb31-31" tabindex="-1"></a>d1 <span class="ot">=</span> d1[d1<span class="sc">$</span>subject <span class="sc">!=</span> d1<span class="sc">$</span>query, ]</span>
-<span id="cb31-32"><a href="#cb31-32" tabindex="-1"></a>d1 <span class="ot">=</span> d1[d1<span class="sc">$</span>distance <span class="sc">&lt;=</span> <span class="dv">0</span>, ]</span>
-<span id="cb31-33"><a href="#cb31-33" tabindex="-1"></a><span class="fu">dim</span>(d1)</span></code></pre></div>
-<pre><code>## [1] 1878    7</code></pre>
-<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" tabindex="-1"></a>d2 <span class="ot">=</span> <span class="fu">as.data.frame</span>(dists2)</span>
-<span id="cb33-2"><a href="#cb33-2" tabindex="-1"></a>d2<span class="sc">$</span>subject <span class="ot">=</span>  subject2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[d2<span class="sc">$</span>subjectHits]</span>
-<span id="cb33-3"><a href="#cb33-3" tabindex="-1"></a>d2<span class="sc">$</span>query <span class="ot">=</span>  query2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[d2<span class="sc">$</span>queryHits]</span>
-<span id="cb33-4"><a href="#cb33-4" tabindex="-1"></a>d2<span class="sc">$</span>subjectID <span class="ot">=</span>  subject2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_id[d2<span class="sc">$</span>subjectHits]</span>
-<span id="cb33-5"><a href="#cb33-5" tabindex="-1"></a>d2<span class="sc">$</span>queryID <span class="ot">=</span>  query2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_id[d2<span class="sc">$</span>queryHits]</span>
-<span id="cb33-6"><a href="#cb33-6" tabindex="-1"></a>d2 <span class="ot">=</span> d2[d2<span class="sc">$</span>subject <span class="sc">!=</span> d2<span class="sc">$</span>query, ]</span>
-<span id="cb33-7"><a href="#cb33-7" tabindex="-1"></a>d2 <span class="ot">=</span> d2[d2<span class="sc">$</span>distance <span class="sc">&lt;=</span> <span class="dv">0</span>, ]</span>
-<span id="cb33-8"><a href="#cb33-8" tabindex="-1"></a><span class="fu">dim</span>(d2)</span></code></pre></div>
-<pre><code>## [1] 1942    7</code></pre>
-<div class="sourceCode" id="cb35"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" tabindex="-1"></a>d1<span class="sc">$</span>strand <span class="ot">=</span> <span class="st">&#39;+&#39;</span></span>
-<span id="cb35-2"><a href="#cb35-2" tabindex="-1"></a>d2<span class="sc">$</span>strand <span class="ot">=</span> <span class="st">&#39;-&#39;</span></span>
-<span id="cb35-3"><a href="#cb35-3" tabindex="-1"></a></span>
-<span id="cb35-4"><a href="#cb35-4" tabindex="-1"></a>d <span class="ot">=</span> <span class="fu">rbind</span>(d1, d2)</span>
-<span id="cb35-5"><a href="#cb35-5" tabindex="-1"></a><span class="co"># d = d[, -c(1:3)]</span></span>
-<span id="cb35-6"><a href="#cb35-6" tabindex="-1"></a>d <span class="ot">=</span> d[<span class="sc">!</span><span class="fu">duplicated</span>(d), ]</span>
-<span id="cb35-7"><a href="#cb35-7" tabindex="-1"></a><span class="fu">dim</span>(d)</span></code></pre></div>
-<pre><code>## [1] 3820    8</code></pre>
-<div class="sourceCode" id="cb37"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" tabindex="-1"></a>id <span class="ot">=</span> <span class="fu">sort</span>(<span class="fu">unique</span>(<span class="fu">c</span>(d<span class="sc">$</span>subject, d<span class="sc">$</span>query)))</span>
-<span id="cb37-2"><a href="#cb37-2" tabindex="-1"></a><span class="fu">length</span>(id)</span></code></pre></div>
-<pre><code>## [1] 6734</code></pre>
-<div class="sourceCode" id="cb39"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" tabindex="-1"></a>ind <span class="ot">=</span> <span class="fu">which</span>(ranges<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name <span class="sc">%in%</span> id)</span>
-<span id="cb39-2"><a href="#cb39-2" tabindex="-1"></a>b <span class="ot">=</span> ranges[ind, ]</span>
-<span id="cb39-3"><a href="#cb39-3" tabindex="-1"></a>a <span class="ot">=</span> <span class="fu">as.data.frame</span>(b<span class="sc">@</span>ranges)</span>
-<span id="cb39-4"><a href="#cb39-4" tabindex="-1"></a>e <span class="ot">=</span> b<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name</span>
-<span id="cb39-5"><a href="#cb39-5" tabindex="-1"></a>f <span class="ot">=</span> b<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_id</span>
-<span id="cb39-6"><a href="#cb39-6" tabindex="-1"></a>a <span class="ot">=</span> <span class="fu">cbind</span>(a,e,f)</span>
-<span id="cb39-7"><a href="#cb39-7" tabindex="-1"></a>a <span class="ot">=</span> a[<span class="sc">!</span><span class="fu">duplicated</span>(a), ]</span>
-<span id="cb39-8"><a href="#cb39-8" tabindex="-1"></a><span class="fu">dim</span>(a)</span></code></pre></div>
-<pre><code>## [1] 6734    6</code></pre>
-<div class="sourceCode" id="cb41"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" tabindex="-1"></a><span class="fu">colnames</span>(a) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&#39;subject_start&#39;</span>, <span class="st">&#39;subject_end&#39;</span>, <span class="st">&#39;subject_width&#39;</span>, <span class="st">&#39;subject_DMG&#39;</span>, <span class="st">&#39;subject&#39;</span>, <span class="st">&#39;subjectID&#39;</span>)</span>
-<span id="cb41-2"><a href="#cb41-2" tabindex="-1"></a>d <span class="ot">=</span> <span class="fu">merge</span>(d, a, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&#39;subject&#39;</span>), <span class="at">all.x =</span> <span class="cn">TRUE</span>, <span class="at">all.y =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb41-3"><a href="#cb41-3" tabindex="-1"></a><span class="fu">colnames</span>(a) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&#39;query_start&#39;</span>, <span class="st">&#39;query_end&#39;</span>, <span class="st">&#39;query_width&#39;</span>, <span class="st">&#39;query_DMG&#39;</span>, <span class="st">&#39;query&#39;</span>, <span class="st">&#39;queryID&#39;</span>)</span>
-<span id="cb41-4"><a href="#cb41-4" tabindex="-1"></a>d <span class="ot">=</span> <span class="fu">merge</span>(d, a, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&#39;query&#39;</span>), <span class="at">all.x =</span> <span class="cn">TRUE</span>, <span class="at">all.y =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb41-5"><a href="#cb41-5" tabindex="-1"></a><span class="fu">dim</span>(d)</span></code></pre></div>
-<pre><code>## [1] 3820   18</code></pre>
-<div class="sourceCode" id="cb43"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" tabindex="-1"></a>d<span class="sc">$</span>subject_start_plus <span class="ot">=</span> d<span class="sc">$</span>subject_start <span class="sc">-</span> <span class="dv">1000</span></span>
-<span id="cb43-2"><a href="#cb43-2" tabindex="-1"></a>d<span class="sc">$</span>subject_end_plus <span class="ot">=</span> d<span class="sc">$</span>subject_end <span class="sc">+</span> <span class="dv">1000</span></span>
-<span id="cb43-3"><a href="#cb43-3" tabindex="-1"></a>d<span class="sc">$</span>query_start_plus <span class="ot">=</span> d<span class="sc">$</span>query_start <span class="sc">-</span> <span class="dv">1000</span></span>
-<span id="cb43-4"><a href="#cb43-4" tabindex="-1"></a>d<span class="sc">$</span>query_end_plus <span class="ot">=</span> d<span class="sc">$</span>query_end <span class="sc">+</span> <span class="dv">1000</span></span></code></pre></div>
-<div class="sourceCode" id="cb44"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" tabindex="-1"></a>d<span class="sc">$</span>query <span class="ot">=</span> <span class="fu">gsub</span>(<span class="st">&#39;.[0-9]$&#39;</span>, <span class="st">&#39;&#39;</span>, d<span class="sc">$</span>query)</span>
-<span id="cb44-2"><a href="#cb44-2" tabindex="-1"></a>d<span class="sc">$</span>subject <span class="ot">=</span> <span class="fu">gsub</span>(<span class="st">&#39;.[0-9]$&#39;</span>, <span class="st">&#39;&#39;</span>, d<span class="sc">$</span>subject)</span>
-<span id="cb44-3"><a href="#cb44-3" tabindex="-1"></a>d <span class="ot">=</span> d[d<span class="sc">$</span>query <span class="sc">!=</span> d<span class="sc">$</span>subject, ]</span>
-<span id="cb44-4"><a href="#cb44-4" tabindex="-1"></a><span class="fu">dim</span>(d)</span></code></pre></div>
-<pre><code>## [1] 3820   22</code></pre>
-<div class="sourceCode" id="cb46"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" tabindex="-1"></a>minus <span class="ot">=</span> d[d<span class="sc">$</span>strand <span class="sc">==</span> <span class="st">&#39;-&#39;</span>, ]</span>
-<span id="cb46-2"><a href="#cb46-2" tabindex="-1"></a>plus <span class="ot">=</span> d[d<span class="sc">$</span>strand <span class="sc">==</span> <span class="st">&#39;+&#39;</span>, ]</span>
-<span id="cb46-3"><a href="#cb46-3" tabindex="-1"></a></span>
-<span id="cb46-4"><a href="#cb46-4" tabindex="-1"></a>tmp1 <span class="ot">=</span> <span class="fu">cbind</span>(plus<span class="sc">$</span>query,</span>
-<span id="cb46-5"><a href="#cb46-5" tabindex="-1"></a>             plus<span class="sc">$</span>subject,</span>
-<span id="cb46-6"><a href="#cb46-6" tabindex="-1"></a>             plus<span class="sc">$</span>tx_name1,</span>
-<span id="cb46-7"><a href="#cb46-7" tabindex="-1"></a>             plus<span class="sc">$</span>tx_name2)</span>
-<span id="cb46-8"><a href="#cb46-8" tabindex="-1"></a>tmp2 <span class="ot">=</span> <span class="fu">cbind</span>((plus<span class="sc">$</span>subject_end_plus<span class="sc">-</span>plus<span class="sc">$</span>query_start), </span>
-<span id="cb46-9"><a href="#cb46-9" tabindex="-1"></a>            (plus<span class="sc">$</span>query_end_plus<span class="sc">-</span>plus<span class="sc">$</span>subject_start))</span>
-<span id="cb46-10"><a href="#cb46-10" tabindex="-1"></a>mm1 <span class="ot">=</span> <span class="fu">apply</span>(<span class="fu">abs</span>(tmp2), <span class="dv">1</span>, min)</span>
-<span id="cb46-11"><a href="#cb46-11" tabindex="-1"></a>tmp3 <span class="ot">=</span> <span class="fu">cbind</span>(minus<span class="sc">$</span>query,</span>
-<span id="cb46-12"><a href="#cb46-12" tabindex="-1"></a>             minus<span class="sc">$</span>subject,</span>
-<span id="cb46-13"><a href="#cb46-13" tabindex="-1"></a>             minus<span class="sc">$</span>tx_name1,</span>
-<span id="cb46-14"><a href="#cb46-14" tabindex="-1"></a>             minus<span class="sc">$</span>tx_name2)</span>
-<span id="cb46-15"><a href="#cb46-15" tabindex="-1"></a>tmp4 <span class="ot">=</span> <span class="fu">cbind</span>((minus<span class="sc">$</span>subject_start_plus <span class="sc">-</span> minus<span class="sc">$</span>query_end), </span>
-<span id="cb46-16"><a href="#cb46-16" tabindex="-1"></a>            (minus<span class="sc">$</span>subject_end<span class="sc">-</span>minus<span class="sc">$</span>query_start_plus))</span>
-<span id="cb46-17"><a href="#cb46-17" tabindex="-1"></a>mm2 <span class="ot">=</span> <span class="fu">apply</span>(<span class="fu">abs</span>(tmp4), <span class="dv">1</span>, min)</span>
-<span id="cb46-18"><a href="#cb46-18" tabindex="-1"></a></span>
-<span id="cb46-19"><a href="#cb46-19" tabindex="-1"></a></span>
-<span id="cb46-20"><a href="#cb46-20" tabindex="-1"></a></span>
-<span id="cb46-21"><a href="#cb46-21" tabindex="-1"></a>overl <span class="ot">=</span> <span class="fu">sort</span>(<span class="fu">unique</span>(<span class="fu">c</span>(<span class="fu">which</span>(d<span class="sc">$</span>query_start <span class="sc">&lt;=</span> d<span class="sc">$</span>subject_start <span class="sc">&amp;</span> d<span class="sc">$</span>query_end <span class="sc">&gt;=</span> d<span class="sc">$</span>subject_end),</span>
-<span id="cb46-22"><a href="#cb46-22" tabindex="-1"></a>          <span class="fu">which</span>(d<span class="sc">$</span>query_start <span class="sc">&gt;=</span> d<span class="sc">$</span>subject_start <span class="sc">&amp;</span> d<span class="sc">$</span>query_end <span class="sc">&lt;=</span> d<span class="sc">$</span>subject_end),</span>
-<span id="cb46-23"><a href="#cb46-23" tabindex="-1"></a>          <span class="fu">which</span>(d<span class="sc">$</span>query_start <span class="sc">&lt;=</span> d<span class="sc">$</span>subject_start <span class="sc">&amp;</span> d<span class="sc">$</span>query_end <span class="sc">&lt;=</span> d<span class="sc">$</span>subject_end <span class="sc">&amp;</span> d<span class="sc">$</span>query_end <span class="sc">&gt;=</span> d<span class="sc">$</span>subject_start),</span>
-<span id="cb46-24"><a href="#cb46-24" tabindex="-1"></a>          <span class="fu">which</span>(d<span class="sc">$</span>query_start <span class="sc">&gt;=</span> d<span class="sc">$</span>subject_start <span class="sc">&amp;</span> d<span class="sc">$</span>query_end <span class="sc">&gt;=</span> d<span class="sc">$</span>subject_end <span class="sc">&amp;</span> d<span class="sc">$</span>query_start <span class="sc">&lt;=</span> d<span class="sc">$</span>subject_end))))</span>
-<span id="cb46-25"><a href="#cb46-25" tabindex="-1"></a></span>
-<span id="cb46-26"><a href="#cb46-26" tabindex="-1"></a></span>
-<span id="cb46-27"><a href="#cb46-27" tabindex="-1"></a>mm3 <span class="ot">=</span> <span class="fu">apply</span>(<span class="fu">abs</span>(tmp2), <span class="dv">1</span>, min)</span>
-<span id="cb46-28"><a href="#cb46-28" tabindex="-1"></a></span>
-<span id="cb46-29"><a href="#cb46-29" tabindex="-1"></a></span>
-<span id="cb46-30"><a href="#cb46-30" tabindex="-1"></a>dd <span class="ot">=</span> <span class="fu">rbind</span>(<span class="fu">cbind</span>(tmp1, mm1),</span>
-<span id="cb46-31"><a href="#cb46-31" tabindex="-1"></a>           <span class="fu">cbind</span>(tmp3, mm2))</span>
-<span id="cb46-32"><a href="#cb46-32" tabindex="-1"></a><span class="fu">colnames</span>(dd) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&#39;query&#39;</span>, <span class="st">&#39;subject&#39;</span>, <span class="st">&#39;tx_name1&#39;</span>, <span class="st">&#39;tx_name2&#39;</span>, <span class="st">&#39;tr-flanked_distance&#39;</span>)</span>
-<span id="cb46-33"><a href="#cb46-33" tabindex="-1"></a><span class="fu">dim</span>(dd)</span></code></pre></div>
-<pre><code>## [1] 3820    5</code></pre>
-<div class="sourceCode" id="cb48"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" tabindex="-1"></a><span class="fu">dim</span>(dd[<span class="sc">!</span><span class="fu">duplicated</span>(dd), ])</span></code></pre></div>
-<pre><code>## [1] 3820    5</code></pre>
-<div class="sourceCode" id="cb50"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" tabindex="-1"></a><span class="fu">dim</span>(d[<span class="sc">!</span><span class="fu">duplicated</span>(d[, <span class="dv">6</span><span class="sc">:</span><span class="dv">7</span>]), <span class="dv">6</span><span class="sc">:</span><span class="dv">7</span>])</span></code></pre></div>
-<pre><code>## [1] 3820    2</code></pre>
-<div class="sourceCode" id="cb52"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" tabindex="-1"></a><span class="fu">dim</span>(dd[<span class="sc">!</span><span class="fu">duplicated</span>(dd[, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>]), <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>])</span></code></pre></div>
-<pre><code>## [1] 3820    2</code></pre>
-<div class="sourceCode" id="cb54"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" tabindex="-1"></a>d3 <span class="ot">=</span> <span class="fu">merge</span>(d, dd, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&#39;query&#39;</span>, <span class="st">&#39;subject&#39;</span>, <span class="st">&#39;tx_name1&#39;</span>, <span class="st">&#39;tx_name2&#39;</span>), <span class="at">all.x =</span> <span class="cn">TRUE</span>, <span class="at">all.y =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb54-2"><a href="#cb54-2" tabindex="-1"></a><span class="fu">dim</span>(d3)</span></code></pre></div>
-<pre><code>## [1] 3820   23</code></pre>
-<div class="sourceCode" id="cb56"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" tabindex="-1"></a>d3<span class="sc">$</span>overlappingGenes <span class="ot">=</span> <span class="cn">FALSE</span></span>
-<span id="cb56-2"><a href="#cb56-2" tabindex="-1"></a>d3<span class="sc">$</span>overlappingGenes[overl] <span class="ot">=</span> <span class="cn">TRUE</span></span></code></pre></div>
+<div id="potential-overlaps" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> potential overlaps</h1>
+<div class="sourceCode" id="cb40"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a>transcriptCoordsByGene.GRangesList <span class="ot">=</span> <span class="fu">transcriptsBy</span>(org.gff3, <span class="at">by =</span> <span class="st">&quot;gene&quot;</span>) </span>
+<span id="cb40-2"><a href="#cb40-2" tabindex="-1"></a>ranges <span class="ot">=</span> <span class="fu">unlist</span>(transcriptCoordsByGene.GRangesList)</span>
+<span id="cb40-3"><a href="#cb40-3" tabindex="-1"></a></span>
+<span id="cb40-4"><a href="#cb40-4" tabindex="-1"></a>subject <span class="ot">&lt;-</span> <span class="fu">GRanges</span>(<span class="at">seqnames=</span>ranges<span class="sc">@</span>seqnames, <span class="at">ranges=</span><span class="fu">IRanges</span>(<span class="at">start=</span>ranges<span class="sc">@</span>ranges<span class="sc">@</span>start, <span class="at">width=</span>ranges<span class="sc">@</span>ranges<span class="sc">@</span>width),<span class="at">strand=</span>ranges<span class="sc">@</span>strand)</span>
+<span id="cb40-5"><a href="#cb40-5" tabindex="-1"></a>subject<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name <span class="ot">=</span> ranges<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name</span>
+<span id="cb40-6"><a href="#cb40-6" tabindex="-1"></a>subject1 <span class="ot">=</span> subject[subject<span class="sc">@</span>strand <span class="sc">==</span> <span class="st">&#39;+&#39;</span>, ]</span>
+<span id="cb40-7"><a href="#cb40-7" tabindex="-1"></a>subject2 <span class="ot">=</span> subject[subject<span class="sc">@</span>strand <span class="sc">==</span> <span class="st">&#39;-&#39;</span>, ]</span>
+<span id="cb40-8"><a href="#cb40-8" tabindex="-1"></a>query1 <span class="ot">=</span> <span class="fu">GRanges</span>(<span class="at">seqnames=</span>subject1<span class="sc">@</span>seqnames, </span>
+<span id="cb40-9"><a href="#cb40-9" tabindex="-1"></a>                <span class="at">ranges=</span><span class="fu">IRanges</span>(<span class="at">start=</span>subject1<span class="sc">@</span>ranges<span class="sc">@</span>start <span class="sc">-</span> upstream.width, </span>
+<span id="cb40-10"><a href="#cb40-10" tabindex="-1"></a>                               <span class="at">width=</span>upstream.width),</span>
+<span id="cb40-11"><a href="#cb40-11" tabindex="-1"></a>                <span class="at">strand=</span>subject1<span class="sc">@</span>strand)</span>
+<span id="cb40-12"><a href="#cb40-12" tabindex="-1"></a>query1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name <span class="ot">=</span> subject1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name</span>
+<span id="cb40-13"><a href="#cb40-13" tabindex="-1"></a>query2 <span class="ot">=</span> <span class="fu">GRanges</span>(<span class="at">seqnames=</span>subject2<span class="sc">@</span>seqnames, </span>
+<span id="cb40-14"><a href="#cb40-14" tabindex="-1"></a>                <span class="at">ranges=</span><span class="fu">IRanges</span>(<span class="at">start=</span>subject2<span class="sc">@</span>ranges<span class="sc">@</span>start <span class="sc">+</span> subject2<span class="sc">@</span>ranges<span class="sc">@</span>width, </span>
+<span id="cb40-15"><a href="#cb40-15" tabindex="-1"></a>                               <span class="at">width=</span>upstream.width),</span>
+<span id="cb40-16"><a href="#cb40-16" tabindex="-1"></a>                <span class="at">strand=</span>subject2<span class="sc">@</span>strand)</span>
+<span id="cb40-17"><a href="#cb40-17" tabindex="-1"></a>query2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name <span class="ot">=</span> subject2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name</span>
+<span id="cb40-18"><a href="#cb40-18" tabindex="-1"></a></span>
+<span id="cb40-19"><a href="#cb40-19" tabindex="-1"></a>dists1 <span class="ot">=</span> <span class="fu">distanceToNearest</span>(subject1,query1,<span class="at">select=</span><span class="st">&quot;all&quot;</span>)</span>
+<span id="cb40-20"><a href="#cb40-20" tabindex="-1"></a>dists2 <span class="ot">=</span> <span class="fu">distanceToNearest</span>(subject2,query2,<span class="at">select=</span><span class="st">&quot;all&quot;</span>)</span>
+<span id="cb40-21"><a href="#cb40-21" tabindex="-1"></a>dists1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name1 <span class="ot">=</span> subject1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[dists1<span class="sc">@</span>from]</span>
+<span id="cb40-22"><a href="#cb40-22" tabindex="-1"></a>dists1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name2 <span class="ot">=</span> query1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[dists1<span class="sc">@</span>to]</span>
+<span id="cb40-23"><a href="#cb40-23" tabindex="-1"></a>dists2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name1 <span class="ot">=</span> subject2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[dists2<span class="sc">@</span>from]</span>
+<span id="cb40-24"><a href="#cb40-24" tabindex="-1"></a>dists2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name2 <span class="ot">=</span> query2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[dists2<span class="sc">@</span>to]</span>
+<span id="cb40-25"><a href="#cb40-25" tabindex="-1"></a></span>
+<span id="cb40-26"><a href="#cb40-26" tabindex="-1"></a>d1 <span class="ot">=</span> <span class="fu">as.data.frame</span>(dists1)</span>
+<span id="cb40-27"><a href="#cb40-27" tabindex="-1"></a>d1<span class="sc">$</span>subject <span class="ot">=</span>  subject1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[d1<span class="sc">$</span>subjectHits]</span>
+<span id="cb40-28"><a href="#cb40-28" tabindex="-1"></a>d1<span class="sc">$</span>query <span class="ot">=</span>  query1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[d1<span class="sc">$</span>queryHits]</span>
+<span id="cb40-29"><a href="#cb40-29" tabindex="-1"></a>d1<span class="sc">$</span>subjectID <span class="ot">=</span>  subject1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_id[d1<span class="sc">$</span>subjectHits]</span>
+<span id="cb40-30"><a href="#cb40-30" tabindex="-1"></a>d1<span class="sc">$</span>queryID <span class="ot">=</span>  query1<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_id[d1<span class="sc">$</span>queryHits]</span>
+<span id="cb40-31"><a href="#cb40-31" tabindex="-1"></a>d1 <span class="ot">=</span> d1[d1<span class="sc">$</span>subject <span class="sc">!=</span> d1<span class="sc">$</span>query, ]</span>
+<span id="cb40-32"><a href="#cb40-32" tabindex="-1"></a>d1 <span class="ot">=</span> d1[d1<span class="sc">$</span>distance <span class="sc">&lt;=</span> <span class="dv">0</span>, ]</span>
+<span id="cb40-33"><a href="#cb40-33" tabindex="-1"></a><span class="fu">dim</span>(d1)</span></code></pre></div>
+<pre><code>## [1] 29446     7</code></pre>
+<div class="sourceCode" id="cb42"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" tabindex="-1"></a>d2 <span class="ot">=</span> <span class="fu">as.data.frame</span>(dists2)</span>
+<span id="cb42-2"><a href="#cb42-2" tabindex="-1"></a>d2<span class="sc">$</span>subject <span class="ot">=</span>  subject2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[d2<span class="sc">$</span>subjectHits]</span>
+<span id="cb42-3"><a href="#cb42-3" tabindex="-1"></a>d2<span class="sc">$</span>query <span class="ot">=</span>  query2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name[d2<span class="sc">$</span>queryHits]</span>
+<span id="cb42-4"><a href="#cb42-4" tabindex="-1"></a>d2<span class="sc">$</span>subjectID <span class="ot">=</span>  subject2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_id[d2<span class="sc">$</span>subjectHits]</span>
+<span id="cb42-5"><a href="#cb42-5" tabindex="-1"></a>d2<span class="sc">$</span>queryID <span class="ot">=</span>  query2<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_id[d2<span class="sc">$</span>queryHits]</span>
+<span id="cb42-6"><a href="#cb42-6" tabindex="-1"></a>d2 <span class="ot">=</span> d2[d2<span class="sc">$</span>subject <span class="sc">!=</span> d2<span class="sc">$</span>query, ]</span>
+<span id="cb42-7"><a href="#cb42-7" tabindex="-1"></a>d2 <span class="ot">=</span> d2[d2<span class="sc">$</span>distance <span class="sc">&lt;=</span> <span class="dv">0</span>, ]</span>
+<span id="cb42-8"><a href="#cb42-8" tabindex="-1"></a><span class="fu">dim</span>(d2)</span></code></pre></div>
+<pre><code>## [1] 26667     7</code></pre>
+<div class="sourceCode" id="cb44"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" tabindex="-1"></a>d1<span class="sc">$</span>strand <span class="ot">=</span> <span class="st">&#39;+&#39;</span></span>
+<span id="cb44-2"><a href="#cb44-2" tabindex="-1"></a>d2<span class="sc">$</span>strand <span class="ot">=</span> <span class="st">&#39;-&#39;</span></span>
+<span id="cb44-3"><a href="#cb44-3" tabindex="-1"></a></span>
+<span id="cb44-4"><a href="#cb44-4" tabindex="-1"></a>d <span class="ot">=</span> <span class="fu">rbind</span>(d1, d2)</span>
+<span id="cb44-5"><a href="#cb44-5" tabindex="-1"></a><span class="co"># d = d[, -c(1:3)]</span></span>
+<span id="cb44-6"><a href="#cb44-6" tabindex="-1"></a>d <span class="ot">=</span> d[<span class="sc">!</span><span class="fu">duplicated</span>(d), ]</span>
+<span id="cb44-7"><a href="#cb44-7" tabindex="-1"></a><span class="fu">dim</span>(d)</span></code></pre></div>
+<pre><code>## [1] 56113     8</code></pre>
+<div class="sourceCode" id="cb46"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" tabindex="-1"></a>id <span class="ot">=</span> <span class="fu">sort</span>(<span class="fu">unique</span>(<span class="fu">c</span>(d<span class="sc">$</span>subject, d<span class="sc">$</span>query)))</span>
+<span id="cb46-2"><a href="#cb46-2" tabindex="-1"></a><span class="fu">length</span>(id)</span></code></pre></div>
+<pre><code>## [1] 38795</code></pre>
+<div class="sourceCode" id="cb48"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" tabindex="-1"></a>ind <span class="ot">=</span> <span class="fu">which</span>(ranges<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name <span class="sc">%in%</span> id)</span>
+<span id="cb48-2"><a href="#cb48-2" tabindex="-1"></a>b <span class="ot">=</span> ranges[ind, ]</span>
+<span id="cb48-3"><a href="#cb48-3" tabindex="-1"></a>a <span class="ot">=</span> <span class="fu">as.data.frame</span>(b<span class="sc">@</span>ranges)</span>
+<span id="cb48-4"><a href="#cb48-4" tabindex="-1"></a>e <span class="ot">=</span> b<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_name</span>
+<span id="cb48-5"><a href="#cb48-5" tabindex="-1"></a>f <span class="ot">=</span> b<span class="sc">@</span>elementMetadata<span class="sc">$</span>tx_id</span>
+<span id="cb48-6"><a href="#cb48-6" tabindex="-1"></a>a <span class="ot">=</span> <span class="fu">cbind</span>(a,e,f)</span>
+<span id="cb48-7"><a href="#cb48-7" tabindex="-1"></a>a <span class="ot">=</span> a[<span class="sc">!</span><span class="fu">duplicated</span>(a), ]</span>
+<span id="cb48-8"><a href="#cb48-8" tabindex="-1"></a><span class="fu">dim</span>(a)</span></code></pre></div>
+<pre><code>## [1] 38795     6</code></pre>
+<div class="sourceCode" id="cb50"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" tabindex="-1"></a><span class="fu">colnames</span>(a) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&#39;subject_start&#39;</span>, <span class="st">&#39;subject_end&#39;</span>, <span class="st">&#39;subject_width&#39;</span>, <span class="st">&#39;subject_DMG&#39;</span>, <span class="st">&#39;subject&#39;</span>, <span class="st">&#39;subjectID&#39;</span>)</span>
+<span id="cb50-2"><a href="#cb50-2" tabindex="-1"></a>d <span class="ot">=</span> <span class="fu">merge</span>(d, a, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&#39;subject&#39;</span>), <span class="at">all.x =</span> <span class="cn">TRUE</span>, <span class="at">all.y =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb50-3"><a href="#cb50-3" tabindex="-1"></a><span class="fu">colnames</span>(a) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&#39;query_start&#39;</span>, <span class="st">&#39;query_end&#39;</span>, <span class="st">&#39;query_width&#39;</span>, <span class="st">&#39;query_DMG&#39;</span>, <span class="st">&#39;query&#39;</span>, <span class="st">&#39;queryID&#39;</span>)</span>
+<span id="cb50-4"><a href="#cb50-4" tabindex="-1"></a>d <span class="ot">=</span> <span class="fu">merge</span>(d, a, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&#39;query&#39;</span>), <span class="at">all.x =</span> <span class="cn">TRUE</span>, <span class="at">all.y =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb50-5"><a href="#cb50-5" tabindex="-1"></a><span class="fu">dim</span>(d)</span></code></pre></div>
+<pre><code>## [1] 56113    18</code></pre>
+<div class="sourceCode" id="cb52"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" tabindex="-1"></a>d<span class="sc">$</span>subject_start_plus <span class="ot">=</span> d<span class="sc">$</span>subject_start <span class="sc">-</span> upstream.width</span>
+<span id="cb52-2"><a href="#cb52-2" tabindex="-1"></a>d<span class="sc">$</span>subject_end_plus <span class="ot">=</span> d<span class="sc">$</span>subject_end <span class="sc">+</span> upstream.width</span>
+<span id="cb52-3"><a href="#cb52-3" tabindex="-1"></a>d<span class="sc">$</span>query_start_plus <span class="ot">=</span> d<span class="sc">$</span>query_start <span class="sc">-</span> upstream.width</span>
+<span id="cb52-4"><a href="#cb52-4" tabindex="-1"></a>d<span class="sc">$</span>query_end_plus <span class="ot">=</span> d<span class="sc">$</span>query_end <span class="sc">+</span> upstream.width</span></code></pre></div>
+<div class="sourceCode" id="cb53"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" tabindex="-1"></a>d<span class="sc">$</span>query <span class="ot">=</span> <span class="fu">gsub</span>(<span class="st">&#39;.[0-9]$&#39;</span>, <span class="st">&#39;&#39;</span>, d<span class="sc">$</span>query)</span>
+<span id="cb53-2"><a href="#cb53-2" tabindex="-1"></a>d<span class="sc">$</span>subject <span class="ot">=</span> <span class="fu">gsub</span>(<span class="st">&#39;.[0-9]$&#39;</span>, <span class="st">&#39;&#39;</span>, d<span class="sc">$</span>subject)</span>
+<span id="cb53-3"><a href="#cb53-3" tabindex="-1"></a>d <span class="ot">=</span> d[d<span class="sc">$</span>query <span class="sc">!=</span> d<span class="sc">$</span>subject, ]</span>
+<span id="cb53-4"><a href="#cb53-4" tabindex="-1"></a><span class="fu">dim</span>(d)</span></code></pre></div>
+<pre><code>## [1] 21050    22</code></pre>
+<div class="sourceCode" id="cb55"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" tabindex="-1"></a>minus <span class="ot">=</span> d[d<span class="sc">$</span>strand <span class="sc">==</span> <span class="st">&#39;-&#39;</span>, ]</span>
+<span id="cb55-2"><a href="#cb55-2" tabindex="-1"></a>plus <span class="ot">=</span> d[d<span class="sc">$</span>strand <span class="sc">==</span> <span class="st">&#39;+&#39;</span>, ]</span>
+<span id="cb55-3"><a href="#cb55-3" tabindex="-1"></a></span>
+<span id="cb55-4"><a href="#cb55-4" tabindex="-1"></a>tmp1 <span class="ot">=</span> <span class="fu">cbind</span>(plus<span class="sc">$</span>query,</span>
+<span id="cb55-5"><a href="#cb55-5" tabindex="-1"></a>             plus<span class="sc">$</span>subject,</span>
+<span id="cb55-6"><a href="#cb55-6" tabindex="-1"></a>             plus<span class="sc">$</span>tx_name1,</span>
+<span id="cb55-7"><a href="#cb55-7" tabindex="-1"></a>             plus<span class="sc">$</span>tx_name2)</span>
+<span id="cb55-8"><a href="#cb55-8" tabindex="-1"></a>tmp2 <span class="ot">=</span> <span class="fu">cbind</span>((plus<span class="sc">$</span>subject_end_plus<span class="sc">-</span>plus<span class="sc">$</span>query_start), </span>
+<span id="cb55-9"><a href="#cb55-9" tabindex="-1"></a>            (plus<span class="sc">$</span>query_end_plus<span class="sc">-</span>plus<span class="sc">$</span>subject_start))</span>
+<span id="cb55-10"><a href="#cb55-10" tabindex="-1"></a>mm1 <span class="ot">=</span> <span class="fu">apply</span>(<span class="fu">abs</span>(tmp2), <span class="dv">1</span>, min)</span>
+<span id="cb55-11"><a href="#cb55-11" tabindex="-1"></a>tmp3 <span class="ot">=</span> <span class="fu">cbind</span>(minus<span class="sc">$</span>query,</span>
+<span id="cb55-12"><a href="#cb55-12" tabindex="-1"></a>             minus<span class="sc">$</span>subject,</span>
+<span id="cb55-13"><a href="#cb55-13" tabindex="-1"></a>             minus<span class="sc">$</span>tx_name1,</span>
+<span id="cb55-14"><a href="#cb55-14" tabindex="-1"></a>             minus<span class="sc">$</span>tx_name2)</span>
+<span id="cb55-15"><a href="#cb55-15" tabindex="-1"></a>tmp4 <span class="ot">=</span> <span class="fu">cbind</span>((minus<span class="sc">$</span>subject_start_plus <span class="sc">-</span> minus<span class="sc">$</span>query_end), </span>
+<span id="cb55-16"><a href="#cb55-16" tabindex="-1"></a>            (minus<span class="sc">$</span>subject_end<span class="sc">-</span>minus<span class="sc">$</span>query_start_plus))</span>
+<span id="cb55-17"><a href="#cb55-17" tabindex="-1"></a>mm2 <span class="ot">=</span> <span class="fu">apply</span>(<span class="fu">abs</span>(tmp4), <span class="dv">1</span>, min)</span>
+<span id="cb55-18"><a href="#cb55-18" tabindex="-1"></a></span>
+<span id="cb55-19"><a href="#cb55-19" tabindex="-1"></a></span>
+<span id="cb55-20"><a href="#cb55-20" tabindex="-1"></a></span>
+<span id="cb55-21"><a href="#cb55-21" tabindex="-1"></a>overl <span class="ot">=</span> <span class="fu">sort</span>(<span class="fu">unique</span>(<span class="fu">c</span>(<span class="fu">which</span>(d<span class="sc">$</span>query_start <span class="sc">&lt;=</span> d<span class="sc">$</span>subject_start <span class="sc">&amp;</span> d<span class="sc">$</span>query_end <span class="sc">&gt;=</span> d<span class="sc">$</span>subject_end),</span>
+<span id="cb55-22"><a href="#cb55-22" tabindex="-1"></a>          <span class="fu">which</span>(d<span class="sc">$</span>query_start <span class="sc">&gt;=</span> d<span class="sc">$</span>subject_start <span class="sc">&amp;</span> d<span class="sc">$</span>query_end <span class="sc">&lt;=</span> d<span class="sc">$</span>subject_end),</span>
+<span id="cb55-23"><a href="#cb55-23" tabindex="-1"></a>          <span class="fu">which</span>(d<span class="sc">$</span>query_start <span class="sc">&lt;=</span> d<span class="sc">$</span>subject_start <span class="sc">&amp;</span> d<span class="sc">$</span>query_end <span class="sc">&lt;=</span> d<span class="sc">$</span>subject_end <span class="sc">&amp;</span> d<span class="sc">$</span>query_end <span class="sc">&gt;=</span> d<span class="sc">$</span>subject_start),</span>
+<span id="cb55-24"><a href="#cb55-24" tabindex="-1"></a>          <span class="fu">which</span>(d<span class="sc">$</span>query_start <span class="sc">&gt;=</span> d<span class="sc">$</span>subject_start <span class="sc">&amp;</span> d<span class="sc">$</span>query_end <span class="sc">&gt;=</span> d<span class="sc">$</span>subject_end <span class="sc">&amp;</span> d<span class="sc">$</span>query_start <span class="sc">&lt;=</span> d<span class="sc">$</span>subject_end))))</span>
+<span id="cb55-25"><a href="#cb55-25" tabindex="-1"></a></span>
+<span id="cb55-26"><a href="#cb55-26" tabindex="-1"></a></span>
+<span id="cb55-27"><a href="#cb55-27" tabindex="-1"></a>mm3 <span class="ot">=</span> <span class="fu">apply</span>(<span class="fu">abs</span>(tmp2), <span class="dv">1</span>, min)</span>
+<span id="cb55-28"><a href="#cb55-28" tabindex="-1"></a></span>
+<span id="cb55-29"><a href="#cb55-29" tabindex="-1"></a></span>
+<span id="cb55-30"><a href="#cb55-30" tabindex="-1"></a>dd <span class="ot">=</span> <span class="fu">rbind</span>(<span class="fu">cbind</span>(tmp1, mm1),</span>
+<span id="cb55-31"><a href="#cb55-31" tabindex="-1"></a>           <span class="fu">cbind</span>(tmp3, mm2))</span>
+<span id="cb55-32"><a href="#cb55-32" tabindex="-1"></a><span class="fu">colnames</span>(dd) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&#39;query&#39;</span>, <span class="st">&#39;subject&#39;</span>, <span class="st">&#39;tx_name1&#39;</span>, <span class="st">&#39;tx_name2&#39;</span>, <span class="st">&#39;tr-flanked_distance&#39;</span>)</span>
+<span id="cb55-33"><a href="#cb55-33" tabindex="-1"></a><span class="fu">dim</span>(dd)</span></code></pre></div>
+<pre><code>## [1] 21050     5</code></pre>
+<div class="sourceCode" id="cb57"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" tabindex="-1"></a><span class="fu">dim</span>(dd[<span class="sc">!</span><span class="fu">duplicated</span>(dd), ])</span></code></pre></div>
+<pre><code>## [1] 21050     5</code></pre>
+<div class="sourceCode" id="cb59"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" tabindex="-1"></a><span class="fu">dim</span>(d[<span class="sc">!</span><span class="fu">duplicated</span>(d[, <span class="dv">6</span><span class="sc">:</span><span class="dv">7</span>]), <span class="dv">6</span><span class="sc">:</span><span class="dv">7</span>])</span></code></pre></div>
+<pre><code>## [1] 21050     2</code></pre>
+<div class="sourceCode" id="cb61"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" tabindex="-1"></a><span class="fu">dim</span>(dd[<span class="sc">!</span><span class="fu">duplicated</span>(dd[, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>]), <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>])</span></code></pre></div>
+<pre><code>## [1] 15006     2</code></pre>
+<div class="sourceCode" id="cb63"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb63-1"><a href="#cb63-1" tabindex="-1"></a>d3 <span class="ot">=</span> <span class="fu">merge</span>(d, dd, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&#39;query&#39;</span>, <span class="st">&#39;subject&#39;</span>, <span class="st">&#39;tx_name1&#39;</span>, <span class="st">&#39;tx_name2&#39;</span>), <span class="at">all.x =</span> <span class="cn">TRUE</span>, <span class="at">all.y =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb63-2"><a href="#cb63-2" tabindex="-1"></a><span class="fu">dim</span>(d3)</span></code></pre></div>
+<pre><code>## [1] 21050    23</code></pre>
+<div class="sourceCode" id="cb65"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb65-1"><a href="#cb65-1" tabindex="-1"></a>d3<span class="sc">$</span>overlappingGenes <span class="ot">=</span> <span class="cn">FALSE</span></span>
+<span id="cb65-2"><a href="#cb65-2" tabindex="-1"></a>d3<span class="sc">$</span>overlappingGenes[overl] <span class="ot">=</span> <span class="cn">TRUE</span></span></code></pre></div>
 </div>
-<div id="write-results" class="section level1" number="3">
-<h1><span class="header-section-number">3</span> write results</h1>
-<div class="sourceCode" id="cb57"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" tabindex="-1"></a>output.directory <span class="ot">=</span> <span class="fu">file.path</span>(<span class="st">&#39;..&#39;</span>, <span class="st">&#39;output&#39;</span>)</span>
-<span id="cb57-2"><a href="#cb57-2" tabindex="-1"></a>file.output.name <span class="ot">=</span> <span class="st">&#39;potential_1000ntpromotor_overlaping_genes.xlsx&#39;</span></span>
-<span id="cb57-3"><a href="#cb57-3" tabindex="-1"></a></span>
-<span id="cb57-4"><a href="#cb57-4" tabindex="-1"></a><span class="co"># write.table(d3, </span></span>
-<span id="cb57-5"><a href="#cb57-5" tabindex="-1"></a><span class="co">#             file.path(output.directory, file.output.name), </span></span>
-<span id="cb57-6"><a href="#cb57-6" tabindex="-1"></a><span class="co">#             append = FALSE, </span></span>
-<span id="cb57-7"><a href="#cb57-7" tabindex="-1"></a><span class="co">#             quote = FALSE, </span></span>
-<span id="cb57-8"><a href="#cb57-8" tabindex="-1"></a><span class="co">#             sep = &quot;\t&quot;,</span></span>
-<span id="cb57-9"><a href="#cb57-9" tabindex="-1"></a><span class="co">#             eol = &quot;\n&quot;, </span></span>
-<span id="cb57-10"><a href="#cb57-10" tabindex="-1"></a><span class="co">#             na = &quot;NA&quot;, dec = &quot;.&quot;, </span></span>
-<span id="cb57-11"><a href="#cb57-11" tabindex="-1"></a><span class="co">#             row.names = FALSE,</span></span>
-<span id="cb57-12"><a href="#cb57-12" tabindex="-1"></a><span class="co">#             col.names = TRUE, </span></span>
-<span id="cb57-13"><a href="#cb57-13" tabindex="-1"></a><span class="co">#             qmethod = c(&quot;escape&quot;),</span></span>
-<span id="cb57-14"><a href="#cb57-14" tabindex="-1"></a><span class="co">#             fileEncoding = &quot;UTF-8&quot;)</span></span>
-<span id="cb57-15"><a href="#cb57-15" tabindex="-1"></a></span>
-<span id="cb57-16"><a href="#cb57-16" tabindex="-1"></a></span>
-<span id="cb57-17"><a href="#cb57-17" tabindex="-1"></a></span>
-<span id="cb57-18"><a href="#cb57-18" tabindex="-1"></a>d3<span class="sc">$</span><span class="st">`</span><span class="at">tr-flanked_distance</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">as.numeric</span>(d3<span class="sc">$</span><span class="st">`</span><span class="at">tr-flanked_distance</span><span class="st">`</span>)</span>
-<span id="cb57-19"><a href="#cb57-19" tabindex="-1"></a></span>
-<span id="cb57-20"><a href="#cb57-20" tabindex="-1"></a>openxlsx<span class="sc">::</span><span class="fu">write.xlsx</span>(d3, </span>
-<span id="cb57-21"><a href="#cb57-21" tabindex="-1"></a>                     <span class="fu">file.path</span>(output.directory, file.output.name), </span>
-<span id="cb57-22"><a href="#cb57-22" tabindex="-1"></a>                     <span class="at">asTable =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb57-23"><a href="#cb57-23" tabindex="-1"></a>                     <span class="at">sheetName =</span> <span class="st">&#39;neighbourhood&#39;</span>,</span>
-<span id="cb57-24"><a href="#cb57-24" tabindex="-1"></a>                     <span class="at">tabColour =</span> <span class="st">&#39;orange&#39;</span>)</span></code></pre></div>
-<div class="sourceCode" id="cb58"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span></code></pre></div>
-<pre><code>## R version 4.3.1 (2023-06-16 ucrt)
-## Platform: x86_64-w64-mingw32/x64 (64-bit)
+<div id="write-results" class="section level1" number="5">
+<h1><span class="header-section-number">5</span> write results</h1>
+<div class="sourceCode" id="cb66"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" tabindex="-1"></a>d3<span class="sc">$</span><span class="st">`</span><span class="at">tr-flanked_distance</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">as.numeric</span>(d3<span class="sc">$</span><span class="st">`</span><span class="at">tr-flanked_distance</span><span class="st">`</span>)</span>
+<span id="cb66-2"><a href="#cb66-2" tabindex="-1"></a></span>
+<span id="cb66-3"><a href="#cb66-3" tabindex="-1"></a>openxlsx<span class="sc">::</span><span class="fu">write.xlsx</span>(d3, </span>
+<span id="cb66-4"><a href="#cb66-4" tabindex="-1"></a>                     <span class="fu">file.path</span>(output.directory, file.output.name), </span>
+<span id="cb66-5"><a href="#cb66-5" tabindex="-1"></a>                     <span class="at">asTable =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb66-6"><a href="#cb66-6" tabindex="-1"></a>                     <span class="at">sheetName =</span> <span class="st">&#39;neighbourhood&#39;</span>,</span>
+<span id="cb66-7"><a href="#cb66-7" tabindex="-1"></a>                     <span class="at">tabColour =</span> <span class="st">&#39;orange&#39;</span>)</span></code></pre></div>
+</div>
+<div id="session-info" class="section level1" number="6">
+<h1><span class="header-section-number">6</span> session Info</h1>
+<div class="sourceCode" id="cb67"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb67-1"><a href="#cb67-1" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span></code></pre></div>
+<pre><code>## R version 4.4.1 (2024-06-14 ucrt)
+## Platform: x86_64-w64-mingw32/x64
 ## Running under: Windows 10 x64 (build 19045)
 ## 
 ## Matrix products: default
@@ -730,51 +738,52 @@ display: none;
 ## [8] base     
 ## 
 ## other attached packages:
-##  [1] GenomicFeatures_1.52.2 AnnotationDbi_1.62.2   Biobase_2.60.0        
-##  [4] Rsamtools_2.16.0       Biostrings_2.68.1      XVector_0.40.0        
-##  [7] GenomicRanges_1.52.1   GenomeInfoDb_1.36.4    IRanges_2.34.1        
-## [10] S4Vectors_0.38.2       BiocGenerics_0.46.0   
+##  [1] GenomicFeatures_1.58.0 AnnotationDbi_1.68.0   Biobase_2.66.0        
+##  [4] Rsamtools_2.22.0       Biostrings_2.74.1      XVector_0.46.0        
+##  [7] GenomicRanges_1.58.0   GenomeInfoDb_1.42.3    IRanges_2.40.1        
+## [10] S4Vectors_0.44.0       BiocGenerics_0.52.0   
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] tidyselect_1.2.0            dplyr_1.1.3                
-##  [3] blob_1.2.4                  filelock_1.0.2             
-##  [5] bitops_1.0-7                fastmap_1.1.1              
-##  [7] RCurl_1.98-1.12             BiocFileCache_2.8.0        
-##  [9] GenomicAlignments_1.36.0    XML_3.99-0.14              
-## [11] digest_0.6.33               lifecycle_1.0.3            
-## [13] KEGGREST_1.40.1             RSQLite_2.3.1              
-## [15] magrittr_2.0.3              compiler_4.3.1             
-## [17] rlang_1.1.1                 sass_0.4.7                 
-## [19] progress_1.2.2              tools_4.3.1                
-## [21] utf8_1.2.3                  yaml_2.3.7                 
-## [23] rtracklayer_1.60.1          knitr_1.44                 
-## [25] prettyunits_1.2.0           S4Arrays_1.0.6             
-## [27] bit_4.0.5                   curl_5.1.0                 
-## [29] DelayedArray_0.26.7         xml2_1.3.5                 
-## [31] abind_1.4-5                 BiocParallel_1.34.2        
-## [33] grid_4.3.1                  fansi_1.0.5                
-## [35] biomaRt_2.56.1              SummarizedExperiment_1.30.2
-## [37] cli_3.6.1                   rmarkdown_2.25             
-## [39] crayon_1.5.2                generics_0.1.3             
-## [41] rstudioapi_0.15.0           httr_1.4.7                 
-## [43] rjson_0.2.21                DBI_1.1.3                  
-## [45] cachem_1.0.8                stringr_1.5.0              
-## [47] zlibbioc_1.46.0             parallel_4.3.1             
-## [49] restfulr_0.0.15             matrixStats_1.0.0          
-## [51] vctrs_0.6.4                 Matrix_1.6-1.1             
-## [53] jsonlite_1.8.7              hms_1.1.3                  
-## [55] bit64_4.0.5                 jquerylib_0.1.4            
-## [57] glue_1.6.2                  codetools_0.2-19           
-## [59] stringi_1.7.12              BiocIO_1.10.0              
-## [61] tibble_3.2.1                pillar_1.9.0               
-## [63] rappdirs_0.3.3              htmltools_0.5.6.1          
-## [65] GenomeInfoDbData_1.2.10     R6_2.5.1                   
-## [67] dbplyr_2.3.4                evaluate_0.22              
-## [69] lattice_0.21-9              png_0.1-8                  
-## [71] openxlsx_4.2.5.2            memoise_2.0.1              
-## [73] bslib_0.5.1                 zip_2.3.0                  
-## [75] Rcpp_1.0.11                 xfun_0.40                  
-## [77] MatrixGenerics_1.12.3       pkgconfig_2.0.3</code></pre>
+##  [1] tidyselect_1.2.1            dplyr_1.1.4                
+##  [3] blob_1.2.4                  filelock_1.0.3             
+##  [5] bitops_1.0-9                fastmap_1.2.0              
+##  [7] RCurl_1.98-1.16             BiocFileCache_2.14.0       
+##  [9] GenomicAlignments_1.42.0    XML_3.99-0.18              
+## [11] digest_0.6.37               lifecycle_1.0.4            
+## [13] KEGGREST_1.46.0             RSQLite_2.3.9              
+## [15] magrittr_2.0.3              compiler_4.4.1             
+## [17] rlang_1.1.5                 sass_0.4.10                
+## [19] progress_1.2.3              tools_4.4.1                
+## [21] yaml_2.3.10                 rtracklayer_1.66.0         
+## [23] knitr_1.50                  prettyunits_1.2.0          
+## [25] S4Arrays_1.6.0              bit_4.5.0.1                
+## [27] curl_6.2.0                  DelayedArray_0.32.0        
+## [29] xml2_1.3.8                  abind_1.4-8                
+## [31] BiocParallel_1.40.0         txdbmaker_1.2.1            
+## [33] grid_4.4.1                  biomaRt_2.62.1             
+## [35] SummarizedExperiment_1.36.0 cli_3.6.3                  
+## [37] rmarkdown_2.29              crayon_1.5.3               
+## [39] generics_0.1.3              rstudioapi_0.17.1          
+## [41] httr_1.4.7                  rjson_0.2.23               
+## [43] DBI_1.2.3                   cachem_1.1.0               
+## [45] stringr_1.5.1               zlibbioc_1.52.0            
+## [47] parallel_4.4.1              restfulr_0.0.15            
+## [49] matrixStats_1.5.0           vctrs_0.6.5                
+## [51] Matrix_1.7-1                jsonlite_1.8.9             
+## [53] hms_1.1.3                   bit64_4.6.0-1              
+## [55] jquerylib_0.1.4             glue_1.8.0                 
+## [57] codetools_0.2-20            stringi_1.8.7              
+## [59] BiocIO_1.16.0               UCSC.utils_1.2.0           
+## [61] tibble_3.2.1                pillar_1.10.2              
+## [63] rappdirs_0.3.3              htmltools_0.5.8.1          
+## [65] GenomeInfoDbData_1.2.13     R6_2.6.1                   
+## [67] dbplyr_2.5.0                httr2_1.1.2                
+## [69] evaluate_1.0.3              lattice_0.22-6             
+## [71] png_0.1-8                   openxlsx_4.2.8             
+## [73] memoise_2.0.1               bslib_0.9.0                
+## [75] zip_2.3.2                   Rcpp_1.0.14                
+## [77] SparseArray_1.6.1           xfun_0.52                  
+## [79] MatrixGenerics_1.18.1       pkgconfig_2.0.3</code></pre>
 </div>
 
 

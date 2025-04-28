@@ -1,0 +1,503 @@
+---
+title: "promoters-in-R"
+author: "zagor and val"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  html_document:
+    toc: true # table of content true
+    toc_depth: 3  # upto three depths of headings (specified by #, ## and ###)
+    number_sections: true  ## if you want number sections at each table header
+    theme: united  # many options for theme, this one is my favorite.
+    highlight: tango  # specifies the syntax highlighting style
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+rm(list = ls())
+gc(reset = TRUE)
+
+
+```
+
+# params
+
+```{r}
+
+unitato = TRUE
+
+upstream.width = 2000
+downstream.width = 0
+
+# input
+in.dir.1 = file.path('..', 'input', 'unitato')
+my.file.1 = 'UniTato.fasta'
+my.file.2 = 'UniTato.gff.gz'
+
+# for which IDs 
+in.dir.2 = file.path('..', 'input')
+my.file.3 = 'subset.txt'
+
+# output
+out.dir = file.path('..', 'output')
+
+# reports
+r.dir = file.path('..', 'reports')
+
+```
+
+
+
+# packages
+
+```{r}
+
+
+
+library(Rsamtools)
+library(GenomicFeatures)
+library(BiocParallel)
+library(stringr)
+library(progressr)
+library(tictoc)
+
+`%nin%` = Negate(`%in%`)
+
+
+```
+
+# data
+
+
+
+## fasta
+
+
+```{r}
+
+
+fa = open(FaFile(file.path(in.dir.1, my.file.1)))
+
+str(fa)
+
+Rsamtools::scanFaIndex(fa)
+
+```
+
+
+## gff3/gtf to TxDb
+
+```{r}
+
+
+my.gff3 = GenomicFeatures::makeTxDbFromGFF(file.path(in.dir.1, my.file.2),
+                              format="gff3",
+                              dataSource=NA,
+                              # organism='Solanum tuberosum',
+                              taxonomyId=NA,
+                              circ_seqs=NULL,
+                              chrominfo=NULL,
+                              miRBaseBuild=NA,
+                              metadata=NULL)
+
+str(my.gff3)
+my.gff3$user_seqlevels
+
+
+
+```
+
+
+## IDs - positive set
+
+```{r}
+
+
+geneIDs = read.delim(file = file.path(in.dir.2, my.file.3), 
+                    header = FALSE, 
+                    sep = "\n", 
+                    quote = NULL,
+                    dec = ".", 
+                    fill = TRUE, 
+                    comment.char = "@")
+geneIDs = unlist(geneIDs)
+geneIDs = geneIDs[!duplicated(geneIDs)]
+length(geneIDs)
+
+```
+
+
+## coord
+
+```{r}
+
+# CoordsByGene.GRangesList = cdsBy(my.gff3, by = "tx") 
+cdsCoordsByGene.GRangesList = cdsBy(my.gff3, by = "gene") 
+cdsCoordsByGene.GRangesList
+llen = elementNROWS(cdsCoordsByGene.GRangesList)
+mynames = rep(names(cdsCoordsByGene.GRangesList), llen)
+
+
+
+txCoordsByGene.GRangesList = transcriptsBy(my.gff3, by = "gene")
+txCoordsByGene.GRangesList
+
+
+if(unitato) {
+  
+  i = min(grep("Soltu", names(cdsCoordsByGene.GRangesList)))
+  print(cdsCoordsByGene.GRangesList[[i]]@elementMetadata)
+  i = min(grep("Soltu", names(txCoordsByGene.GRangesList)))
+  print(txCoordsByGene.GRangesList[[i]]@elementMetadata)
+
+  
+  i = min(grep("Sotub", names(cdsCoordsByGene.GRangesList)))
+  print(cdsCoordsByGene.GRangesList[[i]]@elementMetadata)
+  i = min(grep("Sotub", names(txCoordsByGene.GRangesList)))
+  print(txCoordsByGene.GRangesList[[i]]@elementMetadata)
+
+  
+  i = min(grep("PGSC", names(cdsCoordsByGene.GRangesList)))
+  print(cdsCoordsByGene.GRangesList[[i]]@elementMetadata)
+  i = min(grep("PGSC", names(txCoordsByGene.GRangesList)))
+  print(txCoordsByGene.GRangesList[[i]]@elementMetadata)
+
+  
+}
+
+
+
+if(length(txCoordsByGene.GRangesList) != length(cdsCoordsByGene.GRangesList)) {
+  table(names(cdsCoordsByGene.GRangesList) %in% names(txCoordsByGene.GRangesList))
+  table(names(txCoordsByGene.GRangesList) %in% names(cdsCoordsByGene.GRangesList))
+  print('one exon genes (no CDS defined):')
+  i = which(names(txCoordsByGene.GRangesList) %nin% names(cdsCoordsByGene.GRangesList))
+  print(names(txCoordsByGene.GRangesList[i]))
+  txCoordsByGene.GRangesList = txCoordsByGene.GRangesList[-i]
+}
+
+
+all(names(txCoordsByGene.GRangesList) == names(cdsCoordsByGene.GRangesList))
+bla = cbind(names(txCoordsByGene.GRangesList), names(cdsCoordsByGene.GRangesList))
+
+```
+
+# +/- exons and IDs
+
+```{r}
+
+
+
+handlers("txtprogressbar")
+
+
+param = SnowParam(workers = 8)
+n = length(cdsCoordsByGene.GRangesList)
+
+process_element = function(i, grl, p) {
+  # Load required packages inside worker
+  library(GenomicRanges)
+  library(IRanges)
+  library(S4Vectors)
+  library(stringr)
+
+  gr = grl[[i]]
+  strand = gr@strand@values
+  start = gr@ranges@start
+  ind = ifelse(strand == '-', which.max(start), which.min(start))
+  
+  p()
+  
+  paste0(
+    names(grl)[[i]],
+    '|cdsID=', gr@elementMetadata[ind, 1],
+    '|cdsName=', gr@elementMetadata[ind, 2],
+    '|Exon-order-in-GFF:',
+    str_pad(ind, 3, pad = "0"),
+    '|',
+    strand,
+    'strand'
+  )
+}
+
+
+myVec = NULL
+
+tic("Parallel")
+
+with_progress({
+  p = progressor(steps = n)
+  myVec = bplapply(
+    seq_len(n),
+    function(i) process_element(i, cdsCoordsByGene.GRangesList, p),
+    BPPARAM = param
+  )
+})
+
+
+elapsed_time = toc(quiet = TRUE)
+minutes = elapsed_time$toc - elapsed_time$tic
+minutes = minutes / 60
+cat(sprintf("Elapsed time: %.2f minutes\n", minutes))
+
+
+myVec = unlist(myVec)
+
+length(myVec) == length(cdsCoordsByGene.GRangesList)
+
+```
+
+
+
+# upstream/downstream
+
+the most right exon is the first one
+
+mirrored order (right to left) when (-) strain in play
+
+
+getPromoterSeq is strand-aware in two ways.  For gene transcripts annotated to the minus strand:
+
+   1) It interprets 'upstream' as 'increasing chromosomal coordinates'.
+   2) It returns the reverse complement of the extracted sequence.
+
+
+```{r}
+
+
+
+
+dna = rtracklayer::import(file.path(in.dir.1, my.file.1))
+width(dna)
+# names(dna)
+tmp = cbind(names(dna), width(dna))
+tmp = as.data.frame(tmp)
+colnames(tmp) = c('seqnames', 'chrWidth')
+tmp$chrWidth = as.numeric(tmp$chrWidth)
+
+
+ranges = unlist(cdsCoordsByGene.GRangesList)
+dup = ranges[ranges$cds_id %in% ranges$cds_id[duplicated(ranges$cds_id)], ]
+sharedCDS = data.frame(
+  seqnames = as.character(seqnames(dup)),
+  start = start(dup),
+  end = end(dup),
+  width = width(dup),
+  strand = as.character(strand(dup)),
+  mcols(dup)
+)
+
+ranges = merge(ranges, tmp, by = 'seqnames')
+ranges$chrWidth = as.numeric(ranges$chrWidth)
+
+
+nums = as.numeric((gsub('\\|.*', '', gsub('.*cdsID=', '', myVec))))
+print("shared CDS")
+myVec[grep(paste0("cdsID=(", paste0(nums[duplicated(nums)], collapse = '|'), ")([^0-9]|$)"), myVec)]
+
+ranges = ranges[ranges$cds_id %in% nums, ]
+
+
+ranges$Lnt = ranges$start-upstream.width
+ranges$Rnt = ranges$end+upstream.width
+table(ranges$Rnt >= ranges$chrWidth)
+table(ranges$Lnt <= 0)
+ind = which(((ranges$Rnt >= ranges$chrWidth) & (ranges$strand == '-')) | ((ranges$Lnt < 0) & (ranges$strand == '+')))
+length(ind)
+toShort = ranges[ind, ]
+print("to short")
+myVec[grep(paste(toShort$cds_id, collapse = '|'), myVec)]
+
+indd = which(cdsCoordsByGene.GRangesList@unlistData$cds_id %nin% toShort$cds_id & cdsCoordsByGene.GRangesList@unlistData$cds_id %in% nums)
+
+
+temp.long = cdsCoordsByGene.GRangesList@unlistData[cdsCoordsByGene.GRangesList@unlistData$cds_id %in% nums & 
+                                                     cdsCoordsByGene.GRangesList@unlistData$cds_id %nin% toShort$cds_id, 
+                                                   ]
+mcols(temp.long)$myID = myVec[match(temp.long$cds_id, nums)]
+
+
+ts = cbind(abs(upstream.width - (toShort$Rnt  - toShort$chrWidth)),
+           abs(upstream.width + toShort$Lnt))
+mm = apply(ts, 1, min) - 1
+
+gene.strech = toShort[mm <=0, ]
+print('borderline')
+gene.strech = cbind(gene.strech[, -c(ncol(gene.strech)-1, ncol(gene.strech))], myVec[match(gene.strech$cds_id, nums)])
+colnames(gene.strech)[ncol(gene.strech)] = 'myID'
+print(gene.strech)
+toShort = toShort[mm > 0, ]
+print('shorter upstream seq')
+print(toShort)
+
+
+temp.short = cdsCoordsByGene.GRangesList@unlistData[cdsCoordsByGene.GRangesList@unlistData$cds_id %in% nums & 
+                                                     cdsCoordsByGene.GRangesList@unlistData$cds_id %in% toShort$cds_id, 
+                                                   ]
+mcols(temp.short)$myID = myVec[match(temp.short$cds_id, nums)]
+
+
+toShort = toShort[match(temp.short$cds_id, toShort$cds_id), ]
+
+ts = cbind(abs(upstream.width - (toShort$Rnt  - toShort$chrWidth)),
+           abs(upstream.width + toShort$Lnt))
+mm = apply(ts, 1, min) - 1
+
+
+
+promoter.seqs.l = getPromoterSeq (temp.long, 
+                                 fa, 
+                                 upstream=upstream.width, 
+                                 downstream=downstream.width)
+
+names(promoter.seqs.l) = temp.long$myID
+
+
+
+
+promoter.seqs.s = getPromoterSeq (temp.short, 
+                                 fa, 
+                                 upstream=mm, 
+                                 downstream=downstream.width)
+
+
+names(promoter.seqs.s) = temp.short$myID
+
+
+
+
+
+names(promoter.seqs.s) = paste0(names(promoter.seqs.s), '|||', 
+                              stringr::str_pad(mm, 5, pad = "0"), 'nt-upstream')
+
+names(promoter.seqs.l) = paste0(names(promoter.seqs.l), '|||', 
+                              stringr::str_pad(upstream.width, 5, pad = "0"), 'nt-upstream')
+
+
+
+
+```
+
+
+
+# write fasta
+
+## all sequences
+
+```{r}
+
+
+
+
+
+file.output.name = paste0(gsub('\\..*', '', my.file.1), '_', 'sharedCDS.txt')
+data.table::fwrite(sharedCDS, file.path(r.dir, file.output.name), sep = '\t', row.names = TRUE)
+
+file.output.name = paste0(gsub('\\..*', '', my.file.1), '_', 'borderline.txt')
+data.table::fwrite(gene.strech[, -c((ncol(gene.strech)-1):ncol(gene.strech))], 
+                   file.path(r.dir, file.output.name), sep = '\t', row.names = TRUE)
+
+
+
+
+file.output.name = paste0(gsub('\\..*', '', my.file.1), '_', upstream.width, 'nt_upstream-regions.fasta')
+writeXStringSet(promoter.seqs.l, 
+                file.path(out.dir, file.output.name),
+                append=FALSE,
+                compress=FALSE, 
+                compression_level=NA, 
+                format="fasta",
+                width = upstream.width)
+
+
+df = data.frame(
+  ID = names(promoter.seqs.l),
+  Sequence = as.character(promoter.seqs.l),
+  stringsAsFactors = FALSE
+)
+file.output.name = paste0(gsub('\\..*', '', my.file.1), '_', upstream.width, 'nt_upstream-regions.tsv')
+data.table::fwrite(df, 
+                   file = file.path(out.dir, file.output.name),
+                   sep = "\t")
+
+
+
+file.output.name = paste0(gsub('\\..*', '', my.file.1), '_', min(mm), '-', max(mm), '_short_upstream-regions.fasta')
+writeXStringSet(promoter.seqs.s, 
+                file.path(out.dir, file.output.name),
+                append=FALSE,
+                compress=FALSE, 
+                compression_level=NA, 
+                format="fasta",
+                width = upstream.width)
+
+df = data.frame(
+  ID = names(promoter.seqs.s),
+  Sequence = as.character(promoter.seqs.s),
+  stringsAsFactors = FALSE
+)
+file.output.name = paste0(gsub('\\..*', '', my.file.1), '_', min(mm), '-', max(mm), '_short_upstream-regions.tsv')
+data.table::fwrite(df, 
+                   file = file.path(out.dir, file.output.name),
+                   sep = "\t")
+
+
+
+```
+
+
+## positive and negative set
+
+```{r}
+
+
+
+merged.seqs = c(promoter.seqs.l, promoter.seqs.s)
+
+
+positives = grep(paste0(geneIDs, collapse = '|'), names(merged.seqs))
+length(positives)
+
+file.output.name = paste0(gsub('\\..*', '', my.file.1), '_positives_', upstream.width, 'nt_upstream-regions.fasta')
+writeXStringSet(merged.seqs[positives], 
+                file.path(out.dir, file.output.name),
+                append=FALSE,
+                compress=FALSE, 
+                compression_level=NA, 
+                format="fasta",
+                width = upstream.width)
+
+negatives = grep(paste0(geneIDs, collapse = '|'), names(merged.seqs), invert = TRUE)
+length(negatives)
+
+file.output.name = paste0(gsub('\\..*', '', my.file.1), '_negatives_', upstream.width, 'nt_upstream-regions.fasta')
+writeXStringSet(merged.seqs[negatives], 
+                file.path(out.dir, file.output.name),
+                append=FALSE,
+                compress=FALSE, 
+                compression_level=NA, 
+                format="fasta",
+                width = upstream.width)
+
+
+```
+
+
+# Motifs
+
+see <https://meme-suite.org/meme/>
+
+# session Info
+
+```{r}
+
+sessionInfo()
+
+```
+

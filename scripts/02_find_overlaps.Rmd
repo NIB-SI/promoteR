@@ -18,6 +18,40 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+
+```{r}
+
+rm(list = ls())
+gc(reset = TRUE)
+
+
+```
+
+# params
+
+```{r}
+
+
+upstream.width = 2000
+
+
+# input
+my.directory = file.path('..', 'input', 'unitato')
+my.file.1 = 'UniTato.fasta'
+my.file.2 = 'UniTato.gff.gz'
+
+# output
+output.directory = file.path('..', 'output')
+file.output.name = paste0('UniTato_potential_', upstream.width, 'ntpromotor_overlaping_genes.xlsx')
+
+```
+
+
+
+
+# packages
+
 ```{r}
 
 
@@ -31,6 +65,9 @@ library(GenomicFeatures)
 
 ```
 
+
+
+
 # data
 
 
@@ -40,25 +77,16 @@ library(GenomicFeatures)
 
 ```{r}
 
-my.directory = file.path('..', 'input', 'PLAZA')
-my.file.1 = 'sly.fasta'
 
-
-
-
-
-fa <- open(FaFile(file.path(my.directory, my.file.1)))
+fa = open(FaFile(file.path(my.directory, my.file.1)))
 
 str(fa)
 
 ```
 
 
-## gff3/gtf to TxDb
+## gff3/gtf
 ```{r}
-
-
-my.file.2 = 'annotation.all_transcripts.all_features.sly.gff3'
 
 
 
@@ -90,13 +118,13 @@ subject@elementMetadata$tx_name = ranges@elementMetadata$tx_name
 subject1 = subject[subject@strand == '+', ]
 subject2 = subject[subject@strand == '-', ]
 query1 = GRanges(seqnames=subject1@seqnames, 
-                ranges=IRanges(start=subject1@ranges@start - 1000, 
-                               width=1000),
+                ranges=IRanges(start=subject1@ranges@start - upstream.width, 
+                               width=upstream.width),
                 strand=subject1@strand)
 query1@elementMetadata$tx_name = subject1@elementMetadata$tx_name
 query2 = GRanges(seqnames=subject2@seqnames, 
                 ranges=IRanges(start=subject2@ranges@start + subject2@ranges@width, 
-                               width=1000),
+                               width=upstream.width),
                 strand=subject2@strand)
 query2@elementMetadata$tx_name = subject2@elementMetadata$tx_name
 
@@ -153,10 +181,10 @@ colnames(a) = c('query_start', 'query_end', 'query_width', 'query_DMG', 'query',
 d = merge(d, a, by = c('query'), all.x = TRUE, all.y = FALSE)
 dim(d)
 
-d$subject_start_plus = d$subject_start - 1000
-d$subject_end_plus = d$subject_end + 1000
-d$query_start_plus = d$query_start - 1000
-d$query_end_plus = d$query_end + 1000
+d$subject_start_plus = d$subject_start - upstream.width
+d$subject_end_plus = d$subject_end + upstream.width
+d$query_start_plus = d$query_start - upstream.width
+d$query_end_plus = d$query_end + upstream.width
 
 ```
 
@@ -223,21 +251,6 @@ d3$overlappingGenes[overl] = TRUE
 ```{r}
 
 
-output.directory = file.path('..', 'output')
-file.output.name = 'potential_1000ntpromotor_overlaping_genes.xlsx'
-
-# write.table(d3, 
-#             file.path(output.directory, file.output.name), 
-#             append = FALSE, 
-#             quote = FALSE, 
-#             sep = "\t",
-#             eol = "\n", 
-#             na = "NA", dec = ".", 
-#             row.names = FALSE,
-#             col.names = TRUE, 
-#             qmethod = c("escape"),
-#             fileEncoding = "UTF-8")
-
 
 
 d3$`tr-flanked_distance` = as.numeric(d3$`tr-flanked_distance`)
@@ -252,6 +265,8 @@ openxlsx::write.xlsx(d3,
 
 ```
 
+
+# session Info
 
 ```{r}
 
