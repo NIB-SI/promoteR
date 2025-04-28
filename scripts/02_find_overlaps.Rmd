@@ -42,7 +42,7 @@ my.file.1 = 'UniTato.fasta'
 my.file.2 = 'UniTato.gff.gz'
 
 # output
-output.directory = file.path('..', 'output')
+output.directory = file.path('..', 'reports')
 file.output.name = paste0('UniTato_potential_', upstream.width, 'ntpromotor_overlaping_genes.xlsx')
 
 ```
