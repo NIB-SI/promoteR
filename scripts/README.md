@@ -7,7 +7,7 @@
 ### Verify WSL2 configuration
 ```
 wsl -l -v
-# In case of of WSL1 convert your Ubuntu distribution to WSL2
+# In case of old WSL1 - convert your Ubuntu distribution to WSL2
 wsl --set-version Ubuntu-xx.yy 2
 # start WSL2 instance
 wsl -d Ubuntu-xx.yy
@@ -32,6 +32,8 @@ cd meme-5.5.9
 ```
 ### Configure the build
 ```
+# Install everything into /usr/local/meme instead of the system default
+# Build MEME with its own internal copy of libxml2 instead of relying on the system version, with its own internal libxslt library (for XML/XSLT transformations), with GD so it can generate motif logos and images
 ./configure --prefix=/usr/local/meme \
     --enable-build-libxml2 \
     --enable-build-libxslt \
@@ -39,7 +41,7 @@ cd meme-5.5.9
 ```
 ### Compile, test, and install
 ```
-make -j4
+make -j4 # run up to 4 compilation jobs at the same time
 make test
 make install
 ````
@@ -194,14 +196,13 @@ IC = sapply(pfms, function(pfm) {
   sum(colIC)
 })
 
-pfms_filtered = pfms[IC > 6]
+pfms_filtered = pfms[IC > 6] # change as needed
 ```
 ### Build Log-Odds PWMs for scanning
 ```
 pwms_filtered = lapply(pfms_filtered, function(pfm) {
-  u <- convert_motifs(pfm, class = "universalmotif")
-  u_pwm <- convert_type(u, type = "PWM", pseudocount = 0.1)
-
+  u = convert_motifs(pfm, class = "universalmotif")
+  u_pwm = convert_type(u, type = "PWM", pseudocount = 0.1)
   PWMatrix(
     ID = u_pwm@name,
     name = u_pwm@name,
@@ -301,7 +302,7 @@ motif_metadata = do.call(
 rownames(motif_metadata) = NULL
 hit_table = merge(hit_table, motif_metadata, by = "motif_id", all.x = TRUE, all.y = FALSE)
 ```
-### Write to file
+### Write hits to file
 ```
 file.output.name = paste0(gsub('\\..*', '', my.file.1), '_subset_promoter_', upstream.width, '_motifs-in-R_TFBSTools_JASPAR2022.xlsx')
 openxlsx::write.xlsx(hit_table, 
