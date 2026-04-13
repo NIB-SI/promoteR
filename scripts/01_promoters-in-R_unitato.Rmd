@@ -32,7 +32,7 @@ gc(reset = TRUE)
 
 # params
 
-```{r}
+```{r, params}
 
 unitato = TRUE
 
@@ -60,7 +60,7 @@ r.dir = file.path('..', 'reports')
 
 # packages
 
-```{r}
+```{r, packages}
 
 # if (!require("BiocManager", quietly = TRUE))
 #     install.packages("BiocManager")
@@ -94,7 +94,7 @@ library(tictoc)
 ## fasta
 
 
-```{r}
+```{r, fasta}
 
 
 fa = open(FaFile(file.path(in.dir.1, my.file.1)))
@@ -108,7 +108,7 @@ Rsamtools::scanFaIndex(fa)
 
 ## gff3/gtf to TxDb
 
-```{r}
+```{r, gff}
 
 # when more scaffolds in FASTA than in GFF
 faidx = read.table(
@@ -138,7 +138,7 @@ GenomeInfoDb::genome(my.gff3) = "UniTato" # adjust as needed
 str(my.gff3)
 # my.gff3$user_seqlevels
 
-# optinal - check CDS with missing phase
+# optional - check CDS with missing phase
 # tmp = rtracklayer::import(file.path(in.dir.1, my.file.2))
 # subset(tmp, type == "CDS" & is.na(phase))
 
@@ -147,7 +147,7 @@ str(my.gff3)
 
 ## IDs - positive set
 
-```{r}
+```{r, pos}
 
 
 geneIDs = read.delim(file = file.path(in.dir.2, my.file.3), 
@@ -166,7 +166,7 @@ length(geneIDs)
 
 ## coord
 
-```{r}
+```{r, coord}
 
 # CoordsByGene.GRangesList = cdsBy(my.gff3, by = "tx") 
 cdsCoordsByGene.GRangesList = cdsBy(my.gff3, by = "gene") 
@@ -221,7 +221,7 @@ all(names(txCoordsByGene.GRangesList) == names(cdsCoordsByGene.GRangesList))
 
 # +/- exons and IDs
 
-```{r}
+```{r, exon}
 
 
 
@@ -322,7 +322,7 @@ getPromoterSeq is strand-aware in two ways.  For gene transcripts annotated to t
    2) It returns the reverse complement of the extracted sequence.
 
 
-```{r}
+```{r, upstream_downstream}
 
 
 
@@ -444,7 +444,7 @@ names(promoter.seqs.l) = paste0(names(promoter.seqs.l), '|||',
 
 ## all sequences
 
-```{r}
+```{r, write_all}
 
 
 
@@ -508,7 +508,7 @@ data.table::fwrite(df,
 
 ## positive and negative set
 
-```{r}
+```{r, pos_neg}
 
 
 
