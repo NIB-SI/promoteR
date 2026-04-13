@@ -64,14 +64,14 @@ chmod +x *
 - WSL can read your Windows files via /mnt/c/...
 - R can call WSL directly
 
-### confirm that R sees MEME
+### Confirm that R sees MEME
 ```
 wsl = function(cmd) {
   system(sprintf('wsl --cd ~ bash -lc "%s"', cmd))
 }
 wsl("meme -version")
 ```
-### normalise names
+### Normalise names
 ```
 to_wsl <- function(path) {
   path = normalizePath(path, winslash = "/", mustWork = TRUE)
@@ -147,4 +147,164 @@ run_streme_wsl(
   minw = 6,
   maxw = 24
 )
+```
+
+# Motif scan with TFBSTools and Jaspar in R
+### packages
+```
+library(TFBSTools)
+library(JASPAR2022)
+library(universalmotif)
+library(Biostrings)
+library(pbapply)
+library(ggseqlogo)
+```
+### Ath TF Motifs (JASPAR2022)
+```
+# Load Arabidopsis PFMs
+opts = list(species = 3702)
+pfms = TFBSTools::getMatrixSet(JASPAR2022, opts)
+```
+### TF-name lookup
+```
+tf_lookup <- sapply(names(pfms), function(id) {
+  nm <- pfms[[id]]@tags$remap_tf_name
+  if (is.null(nm) || nm == "") id else nm
+})
+```
+### Promoter positive set
+```
+pos_file = file.path(
+  out.dir,
+  paste0(gsub('\\..*', '', my.file.1),
+         '_positives_', upstream.width, 'nt_upstream-regions.fasta')
+)
+pos = readDNAStringSet(pos_file)
+```
+### Filter out low-info/low-qual motifs
+```
+IC = sapply(pfms, function(pfm) {
+  mat = pfm@profileMatrix
+  mat = sweep(mat, 2, colSums(mat), "/")  # normalize to probabilities
+
+  colIC = apply(mat, 2, function(col) {
+    2 - (-sum(col * log2(col + 1e-6)))    # 2 bits max for DNA
+  })
+
+  sum(colIC)
+})
+
+pfms_filtered = pfms[IC > 6]
+```
+### Build Log-Odds PWMs for scanning
+```
+pwms_filtered = lapply(pfms_filtered, function(pfm) {
+  u <- convert_motifs(pfm, class = "universalmotif")
+  u_pwm <- convert_type(u, type = "PWM", pseudocount = 0.1)
+
+  PWMatrix(
+    ID = u_pwm@name,
+    name = u_pwm@name,
+    profileMatrix = u_pwm@motif,  # log-odds matrix
+    tags = list()
+  )
+})
+
+names(pwms_filtered) = names(pfms_filtered)
+```
+### Scan promoters with high-qual motifs
+```
+# adjust min.score as needed
+all_hits = pblapply(pwms_filtered, function(pwm) {
+  searchSeq(pwm, pos, min.score = "95%", strand = "*")
+})
+
+names(all_hits) = names(pwms_filtered)
+```
+### Summarise hit counts per motif
+```
+hit_counts = sapply(all_hits, function(h) sum(lengths(h)))
+hit_counts_sorted = sort(hit_counts, decreasing = TRUE)
+hit_counts_sorted[1:10]
+# readjust min.score as needed 
+```
+### Plot top motifs logos
+```
+top = names(hit_counts_sorted)[1:20]
+
+for (m in top) {
+  
+  print(m)
+  print(as.data.frame(t(unlist(pfms[[m]]@tags))))
+  cat('\n')
+
+  
+  mat = pfms_filtered[[m]]@profileMatrix
+  mat = sweep(mat, 2, colSums(mat), "/")  # convert to probabilities
+
+  print(
+    ggseqlogo(mat, method = "prob") +
+      ggtitle(tf_lookup[m])   # pretty name
+  )
+}
+```
+### Extract all hits
+```
+extract_hits = function(all_hits, seq_names) {
+  nested = pblapply(seq_along(all_hits), function(m) {
+    motif = names(all_hits)[m]
+    hits_motif = all_hits[[m]]
+
+    lapply(seq_along(hits_motif), function(i) {
+      if (length(hits_motif[[i]]) > 0) {
+        df = as.data.frame(hits_motif[[i]])
+        df$motif_id = motif
+        df$motif = tf_lookup[motif]   # pretty name
+        df$sequence = seq_names[i]
+        return(df)
+      } else {
+        return(NULL)
+      }
+    })
+  })
+  do.call(rbind, unlist(nested, recursive = FALSE))
+}
+
+hit_table = extract_hits(all_hits, names(pos))
+
+# Collect all possible tag names across all motifs
+all_tag_names = unique(unlist(lapply(pfms, function(x) names(x@tags))))
+all_tag_names
+# Build metadata table
+motif_metadata = do.call(
+  rbind,
+  lapply(names(pfms), function(id) {
+    tags = pfms[[id]]@tags
+    # Create row with all tag names
+    row = setNames(as.list(rep(NA, length(all_tag_names))), all_tag_names)
+    # Fill in existing tags, collapsing multi-value fields
+    for (tag in names(tags)) {
+      value = tags[[tag]]
+      # collapse vectors into a single string
+      if (length(value) > 1) {
+        value = paste(value, collapse = "; ")
+      }
+      row[[tag]] = value
+    }
+    # To data.frame
+    df = as.data.frame(row, stringsAsFactors = FALSE)
+    df$motif_id = id
+    df
+  })
+)
+
+rownames(motif_metadata) = NULL
+hit_table = merge(hit_table, motif_metadata, by = "motif_id", all.x = TRUE, all.y = FALSE)
+```
+### Write to file
+```
+file.output.name = paste0(gsub('\\..*', '', my.file.1), '_subset_promoter_', upstream.width, '_motifs-in-R_TFBSTools_JASPAR2022.xlsx')
+openxlsx::write.xlsx(hit_table, 
+                     file = file.path(out.dir, file.output.name),
+                     asTable = TRUE)
 ```
