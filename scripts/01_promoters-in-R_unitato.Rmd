@@ -15,6 +15,10 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+# Disable progress output during knitting
+if (!interactive()) {
+  progressr::handlers("void")
+}
 ```
 
 
@@ -58,11 +62,22 @@ r.dir = file.path('..', 'reports')
 
 ```{r}
 
-
+# if (!require("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# 
+# BiocManager::install("Rsamtools")
+# BiocManager::install("GenomicFeatures")
+# BiocManager::install("txdbmaker")
 
 library(Rsamtools)
 library(GenomicFeatures)
+library(txdbmaker) # makeTxDbFromGFF migration
+
+# Win or Lin
 library(BiocParallel)
+library(future)
+library(future.apply)
+
 library(stringr)
 library(progressr)
 library(tictoc)
@@ -95,21 +110,37 @@ Rsamtools::scanFaIndex(fa)
 
 ```{r}
 
+# when more scaffolds in FASTA than in GFF
+faidx = read.table(
+  paste0(file.path(in.dir.1, my.file.1), ".fai"),
+  sep = "\t", header = FALSE
+)
 
-my.gff3 = GenomicFeatures::makeTxDbFromGFF(file.path(in.dir.1, my.file.2),
+# chrominfo for txdbmaker
+chrominfo = data.frame(
+  chrom       = faidx$V1,
+  length      = faidx$V2,
+  is_circular = NA
+)
+
+my.gff3 = txdbmaker::makeTxDbFromGFF(file.path(in.dir.1, my.file.2),
                               format="gff3",
                               dataSource=NA,
                               # organism='Solanum tuberosum',
                               taxonomyId=NA,
                               circ_seqs=NULL,
-                              chrominfo=NULL,
+                              chrominfo=chrominfo,
                               miRBaseBuild=NA,
                               metadata=NULL)
 
+GenomeInfoDb::genome(my.gff3) = "UniTato" # adjust as needed
+
 str(my.gff3)
-my.gff3$user_seqlevels
+# my.gff3$user_seqlevels
 
-
+# optinal - check CDS with missing phase
+# tmp = rtracklayer::import(file.path(in.dir.1, my.file.2))
+# subset(tmp, type == "CDS" & is.na(phase))
 
 ```
 
@@ -184,7 +215,7 @@ if(length(txCoordsByGene.GRangesList) != length(cdsCoordsByGene.GRangesList)) {
 
 
 all(names(txCoordsByGene.GRangesList) == names(cdsCoordsByGene.GRangesList))
-bla = cbind(names(txCoordsByGene.GRangesList), names(cdsCoordsByGene.GRangesList))
+# check = cbind(names(txCoordsByGene.GRangesList), names(cdsCoordsByGene.GRangesList))
 
 ```
 
@@ -194,18 +225,17 @@ bla = cbind(names(txCoordsByGene.GRangesList), names(cdsCoordsByGene.GRangesList
 
 
 
-handlers("txtprogressbar")
-
-
-param = SnowParam(workers = 8)
+# handlers("txtprogressbar")
+# param = SnowParam(workers = 8)
+							  
 n = length(cdsCoordsByGene.GRangesList)
 
 process_element = function(i, grl, p) {
   # Load required packages inside worker
-  library(GenomicRanges)
-  library(IRanges)
-  library(S4Vectors)
-  library(stringr)
+  # library(GenomicRanges)
+  # library(IRanges)
+  # library(S4Vectors)
+  # library(stringr)
 
   gr = grl[[i]]
   strand = gr@strand@values
@@ -219,7 +249,7 @@ process_element = function(i, grl, p) {
     '|cdsID=', gr@elementMetadata[ind, 1],
     '|cdsName=', gr@elementMetadata[ind, 2],
     '|Exon-order-in-GFF:',
-    str_pad(ind, 3, pad = "0"),
+    stringr::str_pad(ind, 3, pad = "0"),
     '|',
     strand,
     'strand'
@@ -229,14 +259,38 @@ process_element = function(i, grl, p) {
 
 myVec = NULL
 
+# handlers(global = TRUE)
+if (interactive()) {
+  progressr::handlers("txtprogressbar")
+}
+
+plan(multisession) # Win
+
 tic("Parallel")
 
 with_progress({
   p = progressor(steps = n)
-  myVec = bplapply(
+
+  # Lin
+  # myVec = bplapply(
+  #   seq_len(n),
+  #   function(i) {
+  #     # ensure workers load required packages
+  #     library(stats)
+  #     process_element(i, cdsCoordsByGene.GRangesList, p)
+  #   },
+  #   BPPARAM = param
+  # )
+  # BiocParallel passes everything in the function environment
+  # future only passes globals unless you explicitly give them as arguments
+
+  # Win
+  myVec = future_lapply(
     seq_len(n),
-    function(i) process_element(i, cdsCoordsByGene.GRangesList, p),
-    BPPARAM = param
+    function(i, p_local) {
+      process_element(i, cdsCoordsByGene.GRangesList, p_local)
+    },
+    p_local = p
   )
 })
 
@@ -273,7 +327,7 @@ getPromoterSeq is strand-aware in two ways.  For gene transcripts annotated to t
 
 
 
-dna = rtracklayer::import(file.path(in.dir.1, my.file.1))
+dna = readDNAStringSet(file.path(in.dir.1, my.file.1))
 width(dna)
 # names(dna)
 tmp = cbind(names(dna), width(dna))
